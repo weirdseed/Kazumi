@@ -177,6 +177,22 @@ void main() {
       expect(plan.conflictLocalUpdates, isEmpty);
     });
 
+    test('never uploads rule-source items to Bangumi', () {
+      final plan = CollectSyncMerger.planBangumi(
+        localCollectibles: [
+          _collect(1, CollectType.watching, 10),
+          _collect(-42, CollectType.watching, 10),
+        ],
+        remoteCollections: [],
+        priority: BangumiSyncPriority.localFirst,
+      );
+
+      expect(
+        plan.localOnlyUploads.map((upload) => upload.bangumiId),
+        [1],
+      );
+    });
+
     test('resolves conflicts with timeFirst (local newer, remote newer, same moment)', () {
       final plan = CollectSyncMerger.planBangumi(
         localCollectibles: [

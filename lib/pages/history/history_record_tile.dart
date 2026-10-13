@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:kazumi/bean/card/network_img_layer.dart';
 import 'package:kazumi/bean/widget/kazumi_menu.dart';
 import 'package:kazumi/bean/widget/loading_indicator.dart';
+import 'package:kazumi/modules/bangumi/rule_source_item.dart';
 import 'package:kazumi/modules/collect/collect_type.dart';
 import 'package:kazumi/modules/history/history_module.dart';
 
@@ -229,24 +230,27 @@ class HistoryRecordTile extends StatelessWidget {
       ),
       KazumiMenuButton(
         menuChildren: [
-          KazumiMenuItem(
-            onPressed: onDetails,
-            label: '番剧详情',
-          ),
-          SubmenuButton(
-            menuChildren: [
-              for (final type in CollectType.values)
-                KazumiMenuItem(
-                  selected: collectType == type,
-                  onPressed: onChangeCollect == null
-                      ? null
-                      : () => onChangeCollect!(type),
-                  label: type.label,
-                ),
-            ],
-            child: Text(collectType.label),
-          ),
-          const Divider(),
+          // Rule-source entries have no Bangumi subject to open or collect.
+          if (!history.bangumiItem.isRuleSource) ...[
+            KazumiMenuItem(
+              onPressed: onDetails,
+              label: '番剧详情',
+            ),
+            SubmenuButton(
+              menuChildren: [
+                for (final type in CollectType.values)
+                  KazumiMenuItem(
+                    selected: collectType == type,
+                    onPressed: onChangeCollect == null
+                        ? null
+                        : () => onChangeCollect!(type),
+                    label: type.label,
+                  ),
+              ],
+              child: Text(collectType.label),
+            ),
+            const Divider(),
+          ],
           KazumiMenuItem(
             destructive: true,
             onPressed: onDelete,

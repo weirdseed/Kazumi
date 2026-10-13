@@ -6,6 +6,7 @@ import 'package:kazumi/plugins/plugins.dart';
 import 'package:kazumi/pages/history/history_controller.dart';
 import 'package:kazumi/pages/player/player_controller.dart';
 import 'package:kazumi/modules/bangumi/bangumi_item.dart';
+import 'package:kazumi/modules/bangumi/rule_source_item.dart';
 import 'package:kazumi/modules/download/download_module.dart';
 import 'package:kazumi/modules/history/history_module.dart';
 import 'package:kazumi/repositories/download_repository.dart';
@@ -543,6 +544,8 @@ abstract class _VideoPageController with Store implements Disposable {
     PlaybackInitParams params,
     AsyncSession session,
   ) async {
+    // Automatic matching maps the Bangumi id; rule sources can search manually.
+    if (bangumiItem.isRuleSource) return;
     final danmakuSession = _danmakuSessions.begin();
     playerController.danmaku.beginDanmakuLoad();
     try {

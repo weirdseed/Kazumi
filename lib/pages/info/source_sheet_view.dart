@@ -31,6 +31,7 @@ enum _SourceDisplay { preview, expanded, collapsed }
 
 class _SourceSheetView extends StatefulWidget {
   const _SourceSheetView({
+    required this.title,
     required this.keyword,
     required this.groups,
     required this.firstResultSource,
@@ -43,6 +44,7 @@ class _SourceSheetView extends StatefulWidget {
     required this.onClose,
   });
 
+  final String title;
   final String keyword;
   final List<_SourceSearchGroup> groups;
   final String? firstResultSource;
@@ -129,7 +131,7 @@ class _SourceSheetViewState extends State<_SourceSheetView> {
       body: Column(
         children: [
           MaterialBottomSheetHeader(
-            title: '播放来源',
+            title: widget.title,
             description: pending > 0
                 ? '检索中 ${widget.groups.length - pending}/${widget.groups.length} · $resultCount 个结果'
                 : '${widget.groups.length} 个来源 · $resultCount 个结果',

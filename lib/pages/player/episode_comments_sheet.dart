@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_mobx/flutter_mobx.dart';
 import 'package:kazumi/bean/dialog/dialog_helper.dart';
+import 'package:kazumi/bean/widget/empty_state_widget.dart';
+import 'package:kazumi/modules/bangumi/rule_source_item.dart';
 import 'package:kazumi/modules/bangumi/episode_item.dart';
 import 'package:kazumi/pages/player/episode_comments_picker.dart';
 import 'package:kazumi/pages/player/episode_comments_view.dart';
@@ -61,8 +63,9 @@ class _EpisodeCommentsSheetState extends State<EpisodeCommentsSheet>
     final version = ++_requestVersion;
     _selectedEpisode = widget.episode;
     _hasError = false;
-    _isLoading = _controller.commentsEpisode != _selectedEpisode ||
-        _controller.episodeCommentsList.isEmpty;
+    _isLoading = !_controller.bangumiItem.isRuleSource &&
+        (_controller.commentsEpisode != _selectedEpisode ||
+            _controller.episodeCommentsList.isEmpty);
     if (_isLoading) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted && version == _requestVersion) {
@@ -136,6 +139,13 @@ class _EpisodeCommentsSheetState extends State<EpisodeCommentsSheet>
 
   @override
   Widget build(BuildContext context) {
+    if (_controller.bangumiItem.isRuleSource) {
+      return const GeneralEmptyState(
+        compact: true,
+        icon: Icons.forum_outlined,
+        title: '规则源内容没有对应的 Bangumi 条目，暂无评论',
+      );
+    }
     return Observer(builder: (context) {
       final matchesEpisode = _controller.commentsEpisode == _selectedEpisode;
       final comments = _controller.episodeCommentsList.toList();

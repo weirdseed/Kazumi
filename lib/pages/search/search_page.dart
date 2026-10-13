@@ -13,6 +13,7 @@ import 'package:kazumi/bean/widget/loading_indicator.dart';
 import 'package:kazumi/bean/widget/empty_state_widget.dart';
 import 'package:kazumi/bean/widget/state_presentation.dart';
 import 'package:kazumi/modules/bangumi/bangumi_item.dart';
+import 'package:kazumi/pages/info/source_sheet.dart';
 import 'package:kazumi/pages/search/search_controller.dart';
 import 'package:kazumi/services/storage/storage.dart';
 import 'package:kazumi/utils/constants.dart';
@@ -40,6 +41,9 @@ class _SearchPageState extends State<SearchPage> {
   final _searchHeaderKey = GlobalKey();
   String? _submittedQuery;
   bool _managingHistory = false;
+
+  /// Searches the installed rules directly instead of Bangumi.
+  bool _ruleSearch = false;
 
   SearchPageController get _controller => widget.controller;
   bool get _hasSearched => _submittedQuery != null;
@@ -74,6 +78,13 @@ class _SearchPageState extends State<SearchPage> {
   }
 
   Future<void> _submit(String value) async {
+    if (_ruleSearch) {
+      final query = value.trim();
+      _inputFocus.unfocus();
+      _writeInput(query);
+      setState(() => _submittedQuery = query.isEmpty ? null : query);
+      return;
+    }
     final filters = SearchParser(value).toFilterState();
     final query = SearchParser.fromFilterState(filters);
     _inputFocus.unfocus();
@@ -122,6 +133,16 @@ class _SearchPageState extends State<SearchPage> {
     await _submit(result);
   }
 
+  void _setRuleSearch(bool ruleSearch) {
+    if (ruleSearch == _ruleSearch) return;
+    setState(() => _ruleSearch = ruleSearch);
+    if (_hasSearched) {
+      _submit(_input.text);
+    } else if (_scroll.hasClients) {
+      _scroll.jumpTo(0);
+    }
+  }
+
   void _clearSearch() {
     _inputFocus.unfocus();
     _writeInput('');
@@ -139,7 +160,7 @@ class _SearchPageState extends State<SearchPage> {
       builder: (context, value, child) => SearchBar(
         controller: _input,
         focusNode: _inputFocus,
-        hintText: '搜索番剧名称',
+        hintText: _ruleSearch ? '在已安装的规则中搜索' : '搜索番剧名称',
         textInputAction: TextInputAction.search,
         constraints: const BoxConstraints(minHeight: 64),
         elevation: const WidgetStatePropertyAll(0),
@@ -157,11 +178,12 @@ class _SearchPageState extends State<SearchPage> {
                 tooltip: '清空搜索',
                 onPressed: _clearSearch,
                 icon: const Icon(Icons.close_rounded)),
-          IconButton(
-            tooltip: '以图搜番',
-            onPressed: _imageSearch,
-            icon: const Icon(Icons.image_search_rounded),
-          ),
+          if (!_ruleSearch)
+            IconButton(
+              tooltip: '以图搜番',
+              onPressed: _imageSearch,
+              icon: const Icon(Icons.image_search_rounded),
+            ),
         ],
         onSubmitted: _submit,
       ),
@@ -171,26 +193,52 @@ class _SearchPageState extends State<SearchPage> {
   Widget _header() => Padding(
         key: _searchHeaderKey,
         padding: EdgeInsets.only(top: _hasSearched ? 8 : 24, bottom: 16),
-        child: _searchField(),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _searchField(),
+            const SizedBox(height: 12),
+            SegmentedButton<bool>(
+              segments: const [
+                ButtonSegment(
+                  value: false,
+                  label: Text('Bangumi'),
+                  icon: Icon(Icons.travel_explore_rounded),
+                ),
+                ButtonSegment(
+                  value: true,
+                  label: Text('规则源'),
+                  icon: Icon(Icons.extension_rounded),
+                ),
+              ],
+              selected: {_ruleSearch},
+              showSelectedIcon: false,
+              onSelectionChanged: (selection) =>
+                  _setRuleSearch(selection.first),
+            ),
+          ],
+        ),
       );
 
   Widget _discovery() {
     final theme = Theme.of(context);
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-      Material(
-          type: MaterialType.transparency,
-          child: ListTile(
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-            contentPadding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-            leading: const Icon(Icons.tune_rounded),
-            title: const Text('按条件查找'),
-            subtitle: const Text('题材、放送时间与评分'),
-            trailing: const Icon(Icons.chevron_right_rounded),
-            onTap: _showFilters,
-          )),
-      const SizedBox(height: 28),
+      if (!_ruleSearch) ...[
+        Material(
+            type: MaterialType.transparency,
+            child: ListTile(
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20)),
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              leading: const Icon(Icons.tune_rounded),
+              title: const Text('按条件查找'),
+              subtitle: const Text('题材、放送时间与评分'),
+              trailing: const Icon(Icons.chevron_right_rounded),
+              onTap: _showFilters,
+            )),
+        const SizedBox(height: 28),
+      ],
       Observer(builder: (_) {
         final histories = _controller.searchHistories.toList();
         if (histories.isEmpty) return const SizedBox.shrink();
@@ -391,6 +439,24 @@ class _SearchPageState extends State<SearchPage> {
                     )
                   ],
                 );
+            final ruleQuery = _ruleSearch ? _submittedQuery : null;
+            if (ruleQuery != null) {
+              // Rule results scroll on their own, so the search stays pinned.
+              return Column(children: [
+                Padding(
+                    padding: EdgeInsets.symmetric(horizontal: inset),
+                    child: _header()),
+                Expanded(
+                    child: Padding(
+                  padding: EdgeInsets.symmetric(horizontal: inset),
+                  child: SourceSheet.ruleSearch(
+                    key: ValueKey(ruleQuery),
+                    keyword: ruleQuery,
+                    onClose: _clearSearch,
+                  ),
+                )),
+              ]);
+            }
             return Column(children: [
               if (pinSearch)
                 Padding(

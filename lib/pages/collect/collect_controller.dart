@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:kazumi/bean/dialog/dialog_helper.dart';
 import 'package:kazumi/modules/bangumi/bangumi_item.dart';
+import 'package:kazumi/modules/bangumi/rule_source_item.dart';
 import 'package:kazumi/modules/collect/collect_module.dart';
 import 'package:kazumi/modules/collect/collect_type.dart';
 import 'package:kazumi/services/sync/bangumi_sync_service.dart';
@@ -42,6 +43,8 @@ abstract class _CollectController with Store {
 
   @action
   Future<void> addCollect(BangumiItem bangumiItem, {type = 1}) async {
+    // Rule-source items are local-only and would break Bangumi sync.
+    if (bangumiItem.isRuleSource) return;
     if (type == 0) {
       await deleteCollect(bangumiItem);
       return;

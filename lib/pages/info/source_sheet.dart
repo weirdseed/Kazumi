@@ -13,6 +13,8 @@ import 'package:kazumi/bean/widget/loading_indicator.dart';
 import 'package:kazumi/bean/widget/empty_state_widget.dart';
 import 'package:kazumi/bean/widget/split_list_row.dart';
 import 'package:kazumi/bean/widget/state_presentation.dart';
+import 'package:kazumi/modules/bangumi/bangumi_item.dart';
+import 'package:kazumi/modules/bangumi/rule_source_item.dart';
 import 'package:kazumi/modules/search/plugin_search_module.dart';
 import 'package:kazumi/pages/collect/collect_controller.dart';
 import 'package:kazumi/pages/info/info_controller.dart';
@@ -26,6 +28,7 @@ import 'package:kazumi/services/plugin/plugin_search_service.dart';
 import 'package:kazumi/services/plugin/rule_engine_models.dart'
     show RuleCancelToken;
 import 'package:kazumi/utils/device.dart';
+import 'package:mobx/mobx.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 part 'source_alias_dialog.dart';
@@ -33,9 +36,21 @@ part 'source_captcha_flow.dart';
 part 'source_sheet_view.dart';
 
 class SourceSheet extends StatefulWidget {
-  const SourceSheet({super.key, required this.infoController});
+  const SourceSheet({super.key, required InfoController this.infoController})
+      : keyword = null,
+        onClose = null;
 
-  final InfoController infoController;
+  /// Searches rules for [keyword] with no Bangumi subject behind it; results
+  /// play as local-only items (see [ruleSourceBangumiItem]).
+  const SourceSheet.ruleSearch({
+    super.key,
+    required String this.keyword,
+    required VoidCallback this.onClose,
+  }) : infoController = null;
+
+  final InfoController? infoController;
+  final String? keyword;
+  final VoidCallback? onClose;
 
   @override
   State<SourceSheet> createState() => _SourceSheetState();
@@ -47,16 +62,28 @@ class _SourceSheetState extends State<SourceSheet> with KazumiDialogOwner {
   final Map<String, String> _sourceKeywords = {};
 
   late final String _keyword;
+  late final ObservableList<PluginSearchResponse> _responses;
+  late final ObservableMap<String, PluginSearchStatus> _statuses;
   late final PluginSearchService _searchService;
   late final _SourceCaptchaFlow _captchaFlow;
 
   @override
   void initState() {
     super.initState();
-    final item = widget.infoController.bangumiItem;
-    _keyword = item.nameCn.isEmpty ? item.name : item.nameCn;
+    final infoController = widget.infoController;
+    if (infoController == null) {
+      _keyword = widget.keyword!;
+      _responses = ObservableList<PluginSearchResponse>();
+      _statuses = ObservableMap<String, PluginSearchStatus>();
+    } else {
+      final item = infoController.bangumiItem;
+      _keyword = item.nameCn.isEmpty ? item.name : item.nameCn;
+      _responses = infoController.pluginSearchResponseList;
+      _statuses = infoController.pluginSearchStatus;
+    }
     _searchService = PluginSearchService(
-      infoController: widget.infoController,
+      responses: _responses,
+      statuses: _statuses,
       pluginsController: _pluginsController,
     );
     _captchaFlow = _SourceCaptchaFlow(
@@ -74,6 +101,9 @@ class _SourceSheetState extends State<SourceSheet> with KazumiDialogOwner {
   }
 
   String _keywordFor(String name) => _sourceKeywords[name] ?? _keyword;
+
+  /// Null while searching rules directly, where there is no Bangumi subject.
+  BangumiItem? get _bangumiItem => widget.infoController?.bangumiItem;
 
   Plugin _pluginFor(String name) =>
       _pluginsController.pluginList.firstWhere((plugin) => plugin.name == name);
@@ -134,7 +164,12 @@ class _SourceSheetState extends State<SourceSheet> with KazumiDialogOwner {
       task.withContext((context) => context.pushNamed(
             '/video/',
             arguments: OnlineVideoPlaybackArgs(
-              bangumiItem: widget.infoController.bangumiItem,
+              bangumiItem: _bangumiItem ??
+                  ruleSourceBangumiItem(
+                    pluginName: plugin.name,
+                    src: searchItem.src,
+                    name: searchItem.name,
+                  ),
               plugin: plugin,
               title: searchItem.name,
               src: searchItem.src,
@@ -148,16 +183,16 @@ class _SourceSheetState extends State<SourceSheet> with KazumiDialogOwner {
   }
 
   void _showAliasPicker(String pluginName) {
-    if (widget.infoController.bangumiItem.alias.isEmpty) {
+    final item = _bangumiItem;
+    if (item == null || item.alias.isEmpty) {
       KazumiDialog.showToast(message: '无可用别名，试试修改检索关键词');
       return;
     }
     _showAliasPickerDialog(
       sourceName: pluginName,
-      aliases: widget.infoController.bangumiItem.alias,
+      aliases: item.alias,
       onAliasSelected: (alias) => _querySource(alias, pluginName),
-      onAliasesChanged: () => _collectController
-          .updateLocalCollect(widget.infoController.bangumiItem),
+      onAliasesChanged: () => _collectController.updateLocalCollect(item),
     );
   }
 
@@ -165,8 +200,8 @@ class _SourceSheetState extends State<SourceSheet> with KazumiDialogOwner {
         initialKeyword: _keywordFor(pluginName),
         sourceName: pluginName,
         onSubmit: (keyword) {
-          final item = widget.infoController.bangumiItem;
-          if (!item.alias.contains(keyword)) {
+          final item = _bangumiItem;
+          if (item != null && !item.alias.contains(keyword)) {
             item.alias.add(keyword);
             _collectController.updateLocalCollect(item);
           }
@@ -183,16 +218,14 @@ class _SourceSheetState extends State<SourceSheet> with KazumiDialogOwner {
               plugin.name: _SourceSearchGroup(
                 name: plugin.name,
                 keyword: _keywordFor(plugin.name),
-                status: widget.infoController.pluginSearchStatus[plugin.name] ??
-                    PluginSearchStatus.pending,
+                status: _statuses[plugin.name] ?? PluginSearchStatus.pending,
                 results: <SearchItem>[],
               ),
           };
           final seenBySource = <String, Set<String>>{};
           String? firstResultSource;
           // Responses follow completion order; groups keep configured order.
-          for (final response
-              in widget.infoController.pluginSearchResponseList) {
+          for (final response in _responses) {
             final group = groupsByName[response.pluginName];
             if (group == null) continue;
             final seen = seenBySource.putIfAbsent(group.name, () => <String>{});
@@ -202,6 +235,7 @@ class _SourceSheetState extends State<SourceSheet> with KazumiDialogOwner {
             if (group.hasResults) firstResultSource ??= group.name;
           }
           return _SourceSheetView(
+            title: widget.infoController == null ? '规则源结果' : '播放来源',
             keyword: _keyword,
             groups: groupsByName.values.toList(),
             firstResultSource: firstResultSource,
@@ -212,7 +246,7 @@ class _SourceSheetState extends State<SourceSheet> with KazumiDialogOwner {
                 _captchaFlow.start(_pluginFor(name), _keywordFor(name)),
             onOpenBrowser: _openInBrowser,
             onPlay: _openSearchItem,
-            onClose: () => Navigator.of(context).pop(),
+            onClose: widget.onClose ?? () => Navigator.of(context).pop(),
           );
         },
       );

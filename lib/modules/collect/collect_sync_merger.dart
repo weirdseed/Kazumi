@@ -1,4 +1,5 @@
 import 'package:kazumi/modules/bangumi/bangumi_collection.dart';
+import 'package:kazumi/modules/bangumi/rule_source_item.dart';
 import 'package:kazumi/modules/bangumi/sync_priority.dart';
 import 'package:kazumi/modules/collect/collect_change_module.dart';
 import 'package:kazumi/modules/collect/collect_module.dart';
@@ -121,7 +122,9 @@ class CollectSyncMerger {
     required BangumiSyncPriority priority,
   }) {
     final localMap = {
-      for (final item in localCollectibles) item.bangumiItem.id: item,
+      for (final item in localCollectibles)
+        // Rule-source items have no Bangumi subject to upload.
+        if (!item.bangumiItem.isRuleSource) item.bangumiItem.id: item,
     };
     final remoteMap = <int, BangumiCollection>{};
     for (final item in remoteCollections) {
