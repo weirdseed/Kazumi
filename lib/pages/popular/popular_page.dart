@@ -94,6 +94,7 @@ class _PopularPageState extends State<PopularPage> with KazumiDialogOwner {
         controller: scrollController,
         slivers: [
           buildSliverAppBar(),
+          SliverToBoxAdapter(child: _buildModeToggle()),
           SliverToBoxAdapter(
             child: Observer(
               builder: (_) {
@@ -227,7 +228,44 @@ class _PopularPageState extends State<PopularPage> with KazumiDialogOwner {
                     height: 44,
                     child: Observer(
                       builder: (_) {
-                        return _buildTitleMenu(theme, fontWeight, fontSize);
+                        if (popularController.ruleMode) {
+                          return _buildRuleTitleMenu(
+                              theme, fontWeight, fontSize);
+                        }
+                        final bool isTrend = popularController.currentTag == '';
+                        return KazumiMenuButton(
+                          animated: true,
+                          style: const MenuStyle(
+                            maximumSize: WidgetStatePropertyAll(Size(240, 350)),
+                          ),
+                          menuChildren: [
+                            for (final tag in ['', ...defaultAnimeTags])
+                              KazumiMenuItem(
+                                label: tag.isEmpty ? '热门番组' : tag,
+                                selected: tag == popularController.currentTag,
+                                onPressed: () => _selectTag(tag),
+                              ),
+                          ],
+                          builder: (context, toggle) => InkWell(
+                            borderRadius: BorderRadius.circular(8),
+                            onTap: toggle,
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  isTrend ? '热门番组' : popularController.currentTag,
+                                  style: theme.textTheme.headlineMedium!.copyWith(
+                                    fontWeight: fontWeight,
+                                    fontSize: fontSize,
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                                Icon(Icons.keyboard_arrow_down,
+                                    size: fontSize, color: theme.iconTheme.color),
+                              ],
+                            ),
+                          ),
+                        );
                       },
                     ),
                   ),
@@ -240,78 +278,75 @@ class _PopularPageState extends State<PopularPage> with KazumiDialogOwner {
     );
   }
 
-  /// Switches to a rule listing; the title menu lists rules under the
-  /// Bangumi tags, so the page keeps the original single-dropdown header.
-  void _selectRule(String name) {
+  Widget _buildModeToggle() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: Observer(
+          builder: (_) => SegmentedButton<bool>(
+            segments: const [
+              ButtonSegment(
+                value: false,
+                label: Text('Bangumi'),
+                icon: Icon(Icons.travel_explore_rounded),
+              ),
+              ButtonSegment(
+                value: true,
+                label: Text('规则'),
+                icon: Icon(Icons.extension_rounded),
+              ),
+            ],
+            selected: {popularController.ruleMode},
+            showSelectedIcon: false,
+            onSelectionChanged: (selection) => _setRuleMode(selection.first),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _setRuleMode(bool ruleMode) {
+    if (ruleMode == popularController.ruleMode) return;
+    popularController.setRuleMode(ruleMode);
     if (scrollController.hasClients) scrollController.jumpTo(0);
-    if (!popularController.ruleMode) popularController.setRuleMode(true);
-    discoverController.selectPlugin(name);
-  }
-
-  Future<void> _selectBangumiTag(String tag) async {
-    if (popularController.ruleMode) {
-      popularController.setRuleMode(false);
-      if (scrollController.hasClients) scrollController.jumpTo(0);
-      if (tag == popularController.currentTag) {
-        if (tag.isEmpty && popularController.trendList.isEmpty) {
-          await popularController.queryBangumiByTrend();
-        }
-        return;
-      }
+    if (ruleMode) {
+      discoverController.ensureLoaded();
+    } else if (popularController.trendList.isEmpty &&
+        popularController.currentTag.isEmpty) {
+      popularController.queryBangumiByTrend();
     }
-    await _selectTag(tag);
   }
 
-  Widget _buildTitleMenu(ThemeData theme, FontWeight fontWeight,
-      double fontSize) {
-    final ruleMode = popularController.ruleMode;
+  Widget _buildRuleTitleMenu(
+    ThemeData theme,
+    FontWeight fontWeight,
+    double fontSize,
+  ) {
     final plugins = discoverController.plugins;
-    final title = ruleMode
-        ? (discoverController.pluginName.isEmpty
-            ? '规则推荐'
-            : discoverController.pluginName)
-        : (popularController.currentTag.isEmpty
-            ? '热门番组'
-            : popularController.currentTag);
+    final current = discoverController.pluginName;
     return KazumiMenuButton(
       animated: true,
       style: const MenuStyle(
         maximumSize: WidgetStatePropertyAll(Size(240, 350)),
       ),
       menuChildren: [
-        for (final tag in ['', ...defaultAnimeTags])
+        for (final plugin in plugins)
           KazumiMenuItem(
-            label: tag.isEmpty ? '热门番组' : tag,
-            selected: !ruleMode && tag == popularController.currentTag,
-            onPressed: () => _selectBangumiTag(tag),
+            label: plugin.name,
+            selected: plugin.name == current,
+            onPressed: () => _selectRule(plugin.name),
           ),
-        if (plugins.isNotEmpty) ...[
-          const Divider(),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-            child: Text(
-              '规则推荐',
-              style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant),
-            ),
-          ),
-          for (final plugin in plugins)
-            KazumiMenuItem(
-              label: plugin.name,
-              selected: ruleMode && plugin.name == discoverController.pluginName,
-              onPressed: () => _selectRule(plugin.name),
-            ),
-        ],
       ],
       builder: (context, toggle) => InkWell(
         borderRadius: BorderRadius.circular(8),
-        onTap: toggle,
+        onTap: plugins.isEmpty ? null : toggle,
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             Flexible(
               child: Text(
-                title,
+                current.isEmpty ? '规则推荐' : current,
                 overflow: TextOverflow.ellipsis,
                 style: theme.textTheme.headlineMedium!.copyWith(
                   fontWeight: fontWeight,
@@ -319,13 +354,20 @@ class _PopularPageState extends State<PopularPage> with KazumiDialogOwner {
                 ),
               ),
             ),
-            const SizedBox(width: 4),
-            Icon(Icons.keyboard_arrow_down,
-                size: fontSize, color: theme.iconTheme.color),
+            if (plugins.length > 1) ...[
+              const SizedBox(width: 4),
+              Icon(Icons.keyboard_arrow_down,
+                  size: fontSize, color: theme.iconTheme.color),
+            ],
           ],
         ),
       ),
     );
+  }
+
+  void _selectRule(String name) {
+    if (scrollController.hasClients) scrollController.jumpTo(0);
+    discoverController.selectPlugin(name);
   }
 
   List<Widget> _buildRuleSlivers() {
@@ -333,87 +375,120 @@ class _PopularPageState extends State<PopularPage> with KazumiDialogOwner {
     if (plugin == null) {
       return [
         SliverToBoxAdapter(
-          child: SizedBox(
-            height: 400,
-            child: GeneralEmptyState(
-              icon: Icons.extension_off_rounded,
-              title: '暂无支持规则推荐的规则',
-              actions: [
-                StateActionButton.tonal(
-                  onPressed: () => context.pushNamed('/settings/plugin/'),
-                  icon: Icons.tune_rounded,
-                  text: '管理规则',
-                ),
-              ],
-            ),
+          child: GeneralEmptyState(
+            icon: Icons.extension_off_rounded,
+            title: '暂无支持规则推荐的规则',
+            actions: [
+              StateActionButton.tonal(
+                onPressed: () => context.pushNamed('/settings/plugin/'),
+                icon: Icons.tune_rounded,
+                text: '管理规则',
+              ),
+            ],
           ),
         ),
       ];
     }
+    final config = plugin.discoverConfig;
     return [
-      if (plugin.discoverConfig.filters.isNotEmpty)
-        SliverToBoxAdapter(child: _buildFilterBar(plugin.discoverConfig)),
+      if (config.filters.isNotEmpty)
+        SliverToBoxAdapter(child: _buildFilterBar(config)),
       ..._buildRuleContent(plugin),
     ];
   }
 
-  /// One compact row: each filter group is a chip that opens its options,
-  /// keeping the header as light as the Bangumi tag menu.
+  /// Small groups are chip rows that apply on tap; large ones open a sheet.
   Widget _buildFilterBar(RuleDiscoverConfig config) {
+    final theme = Theme.of(context);
     final selection = discoverController.selection;
-    return SizedBox(
-      height: 48,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        itemCount: config.filters.length,
-        separatorBuilder: (_, _) => const SizedBox(width: 8),
-        itemBuilder: (context, index) {
-          final group = config.filters[index];
-          return Center(
-            child: _buildFilterChip(group, selection[group.key] ?? const []),
-          );
-        },
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(0, 4, 0, 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (final group in config.filters)
+            SizedBox(
+              height: 44,
+              child: Row(children: [
+                Padding(
+                  padding: const EdgeInsets.only(left: 16, right: 8),
+                  child: Text(
+                    group.displayLabel,
+                    style: theme.textTheme.labelLarge?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant),
+                  ),
+                ),
+                Expanded(
+                  child: _isLargeGroup(group)
+                      ? Align(
+                          alignment: Alignment.centerLeft,
+                          child: _buildGroupSheetChip(
+                              group, selection[group.key] ?? const []),
+                        )
+                      : _buildGroupChips(
+                          group, selection[group.key] ?? const []),
+                ),
+              ]),
+            ),
+        ],
       ),
     );
   }
 
-  Widget _buildFilterChip(DiscoverFilterGroup group, List<String> selected) {
-    final defaults = group.defaultValues();
-    final changed = selected.length != defaults.length ||
-        selected.any((value) => !defaults.contains(value));
+  bool _isLargeGroup(DiscoverFilterGroup group) =>
+      group.sections.length > 1 || group.optionCount > 12;
+
+  Widget _buildGroupChips(DiscoverFilterGroup group, List<String> selected) {
+    final options = group.options.toList();
+    return ListView.separated(
+      scrollDirection: Axis.horizontal,
+      padding: const EdgeInsets.only(right: 16),
+      itemCount: options.length,
+      separatorBuilder: (_, _) => const SizedBox(width: 8),
+      itemBuilder: (context, index) {
+        final option = options[index];
+        final isSelected = selected.contains(option.value);
+        void onSelected(bool value) {
+          final next = group.multiple
+              ? (value
+                  ? [...selected, option.value]
+                  : selected.where((v) => v != option.value).toList())
+              : [option.value];
+          _applySelection(group.key, next);
+        }
+
+        return Center(
+          child: group.multiple
+              ? FilterChip(
+                  label: Text(option.label),
+                  selected: isSelected,
+                  onSelected: onSelected,
+                )
+              : ChoiceChip(
+                  label: Text(option.label),
+                  selected: isSelected,
+                  onSelected: (value) {
+                    if (value) onSelected(true);
+                  },
+                ),
+        );
+      },
+    );
+  }
+
+  Widget _buildGroupSheetChip(
+    DiscoverFilterGroup group,
+    List<String> selected,
+  ) {
     final summary = selected.isEmpty
-        ? group.displayLabel
+        ? '不限'
         : selected.length == 1
             ? group.labelFor(selected.single)
-            : '${group.displayLabel} ${selected.length}';
-    Widget chip(VoidCallback onPressed) => FilterChip(
-          label: Row(mainAxisSize: MainAxisSize.min, children: [
-            Text(summary.isEmpty ? group.displayLabel : summary),
-            const SizedBox(width: 2),
-            const Icon(Icons.arrow_drop_down, size: 18),
-          ]),
-          selected: changed,
-          showCheckmark: false,
-          onSelected: (_) => onPressed(),
-        );
-    if (group.multiple || group.sections.length > 1 || group.optionCount > 30) {
-      return chip(() => _openFilterSheet(group, selected));
-    }
-    return KazumiMenuButton(
-      animated: true,
-      style: const MenuStyle(
-        maximumSize: WidgetStatePropertyAll(Size(240, 350)),
-      ),
-      menuChildren: [
-        for (final option in group.options)
-          KazumiMenuItem(
-            label: option.label,
-            selected: selected.contains(option.value),
-            onPressed: () => _applySelection(group.key, [option.value]),
-          ),
-      ],
-      builder: (context, toggle) => chip(() => toggle?.call()),
+            : '已选 ${selected.length} 项';
+    return ActionChip(
+      avatar: const Icon(Icons.tune_rounded, size: 18),
+      label: Text(summary),
+      onPressed: () => _openFilterSheet(group, selected),
     );
   }
 
@@ -436,6 +511,7 @@ class _PopularPageState extends State<PopularPage> with KazumiDialogOwner {
   }
 
   List<Widget> _buildRuleContent(Plugin plugin) {
+    final items = discoverController.items.toList();
     switch (discoverController.status) {
       // Like the Bangumi list, the first page shows only the progress bar.
       case RuleDiscoverStatus.loading:
@@ -443,18 +519,15 @@ class _PopularPageState extends State<PopularPage> with KazumiDialogOwner {
       case RuleDiscoverStatus.empty:
         return [
           SliverToBoxAdapter(
-            child: SizedBox(
-              height: 400,
-              child: GeneralEmptyState(
-                icon: Icons.filter_alt_off_rounded,
-                title: '该筛选条件下没有结果',
-                actions: [
-                  StateActionButton.tonal(
-                    onPressed: discoverController.resetSelection,
-                    text: '重置筛选',
-                  ),
-                ],
-              ),
+            child: GeneralEmptyState(
+              icon: Icons.filter_alt_off_rounded,
+              title: '该筛选条件下没有结果',
+              actions: [
+                StateActionButton.tonal(
+                  onPressed: discoverController.resetSelection,
+                  text: '重置筛选',
+                ),
+              ],
             ),
           ),
         ];
@@ -463,15 +536,12 @@ class _PopularPageState extends State<PopularPage> with KazumiDialogOwner {
         final captcha = discoverController.status == RuleDiscoverStatus.captcha;
         return [
           SliverToBoxAdapter(
-            child: SizedBox(
-              height: 400,
-              child: GeneralErrorWidget(
-                title: captcha ? '需要完成站点验证' : '加载失败',
-                errMsg: captcha
-                    ? '可以先在规则源搜索中完成该站点的验证，再回来重试'
-                    : '请检查网络或规则配置后重试',
-                onRetry: discoverController.refresh,
-              ),
+            child: GeneralErrorWidget(
+              title: captcha ? '需要完成站点验证' : '加载失败',
+              errMsg: captcha
+                  ? '可以先在规则源搜索中完成该站点的验证，再回来重试'
+                  : '请检查网络或规则配置后重试',
+              onRetry: discoverController.refresh,
             ),
           ),
         ];
@@ -480,7 +550,7 @@ class _PopularPageState extends State<PopularPage> with KazumiDialogOwner {
           SliverPadding(
             padding: const EdgeInsets.fromLTRB(
                 StyleString.cardSpace, 0, StyleString.cardSpace, 0),
-            sliver: _buildRuleGrid(plugin, discoverController.items.toList()),
+            sliver: _buildRuleGrid(plugin, items),
           ),
           SliverToBoxAdapter(child: _buildRuleFooter()),
         ];
