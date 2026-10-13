@@ -8,7 +8,9 @@ import 'package:kazumi/modules/bangumi/rule_source_item.dart';
 import 'package:kazumi/modules/bangumi/episode_item.dart';
 import 'package:kazumi/pages/player/episode_comments_picker.dart';
 import 'package:kazumi/pages/player/episode_comments_view.dart';
+import 'package:kazumi/pages/player/site_comments_view.dart';
 import 'package:kazumi/pages/video/video_controller.dart';
+import 'package:kazumi/plugins/plugins.dart';
 import 'package:kazumi/request/apis/bangumi_api.dart';
 
 class EpisodeCommentsSheet extends StatefulWidget {
@@ -137,15 +139,67 @@ class _EpisodeCommentsSheetState extends State<EpisodeCommentsSheet>
     }, errorMessage: '分集列表加载失败，请稍后重试');
   }
 
+  /// Shows the rule site's comments instead of Bangumi's for Bangumi items.
+  bool _showSiteComments = false;
+
+  /// The rule and episode page whose site comments can be shown, if any.
+  (Plugin, String)? get _siteComments {
+    if (_controller.isOfflineMode) return null;
+    final plugin = _controller.currentPlugin;
+    if (!plugin.supportsSiteComments) return null;
+    final selection = widget.selection;
+    final roads = _controller.roadList;
+    if (selection.road < 0 || selection.road >= roads.length) return null;
+    final pages = roads[selection.road].data;
+    final index = selection.episode - 1;
+    if (index < 0 || index >= pages.length) return null;
+    return (plugin, pages[index]);
+  }
+
+  Widget _buildSiteComments((Plugin, String) site) => SiteCommentsView(
+        plugin: site.$1,
+        pageUrl: site.$2,
+        src: _controller.src,
+      );
+
   @override
   Widget build(BuildContext context) {
+    final site = _siteComments;
     if (_controller.bangumiItem.isRuleSource) {
+      if (site != null) return _buildSiteComments(site);
       return const GeneralEmptyState(
         compact: true,
         icon: Icons.forum_outlined,
         title: '规则源内容没有对应的 Bangumi 条目，暂无评论',
       );
     }
+    if (site == null) return _buildBangumiComments();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+          child: SegmentedButton<bool>(
+            segments: [
+              const ButtonSegment(value: false, label: Text('Bangumi')),
+              ButtonSegment(value: true, label: Text(site.$1.name)),
+            ],
+            selected: {_showSiteComments},
+            showSelectedIcon: false,
+            onSelectionChanged: (selection) =>
+                setState(() => _showSiteComments = selection.first),
+          ),
+        ),
+        Expanded(
+          child: _showSiteComments
+              ? _buildSiteComments(site)
+              : _buildBangumiComments(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildBangumiComments() {
     return Observer(builder: (context) {
       final matchesEpisode = _controller.commentsEpisode == _selectedEpisode;
       final comments = _controller.episodeCommentsList.toList();

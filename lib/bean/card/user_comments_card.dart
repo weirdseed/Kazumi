@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:kazumi/bbcode/bbcode_widget.dart';
 import 'package:kazumi/bean/widget/bangumi_avatar.dart';
 import 'package:kazumi/modules/comments/comment_item.dart';
+import 'package:kazumi/services/plugin/rule_engine_models.dart'
+    show RuleComment;
 import 'package:kazumi/utils/date_time.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 
@@ -15,6 +17,12 @@ class UserCommentsCard extends StatefulWidget {
       : _source = item,
         _comment = _fromCharacter(item.comment),
         _replies = item.replies.map(_fromCharacter).toList();
+
+  /// A comment scraped from a rule's website.
+  UserCommentsCard.site(RuleComment comment, {super.key})
+      : _source = comment,
+        _comment = _fromSite(comment),
+        _replies = const [];
 
   final Object _source;
   final _CommentData _comment;
@@ -176,7 +184,9 @@ class _CommentAuthor extends StatelessWidget {
               ),
               const SizedBox(height: 2),
               Text(
-                dateFormat(comment.createdAt),
+                comment.timeText.isNotEmpty
+                    ? comment.timeText
+                    : dateFormat(comment.createdAt),
                 style: theme.textTheme.labelSmall?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
@@ -263,16 +273,41 @@ class _CommentSurface extends StatelessWidget {
   }
 }
 
-typedef _CommentData = ({User user, String content, int createdAt});
+typedef _CommentData = ({
+  User user,
+  String content,
+  int createdAt,
+  String timeText,
+});
 
 _CommentData _fromEpisode(EpisodeComment comment) => (
       user: comment.user,
       content: comment.comment,
       createdAt: comment.createdAt,
+      timeText: '',
     );
 
 _CommentData _fromCharacter(CharacterComment comment) => (
       user: comment.user,
       content: comment.comment,
       createdAt: comment.createdAt,
+      timeText: '',
+    );
+
+_CommentData _fromSite(RuleComment comment) => (
+      user: User(
+        id: 0,
+        username: comment.user,
+        nickname: comment.user,
+        avatar: UserAvatar(
+          small: comment.avatar,
+          medium: comment.avatar,
+          large: comment.avatar,
+        ),
+        sign: '',
+        joinedAt: 0,
+      ),
+      content: comment.content,
+      createdAt: 0,
+      timeText: comment.time,
     );
