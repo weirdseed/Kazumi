@@ -260,6 +260,11 @@ class HistoryRepository implements IHistoryRepository {
         if (identity.episodePageUrl.isNotEmpty) {
           history.episodePageUrl = identity.episodePageUrl;
         }
+        // 规则源条目首次从搜索播放时没有封面，之后从规则推荐播放可补上
+        if (history.bangumiItem.images.isEmpty &&
+            bangumiItem.images.isNotEmpty) {
+          history.bangumiItem.images = Map.of(bangumiItem.images);
+        }
 
         // 更新观看进度
         var prog = history.progresses[episode];

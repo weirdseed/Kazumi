@@ -10,6 +10,7 @@ import 'package:kazumi/pages/my/my_module.dart';
 import 'package:kazumi/pages/onboarding/onboarding_page.dart';
 import 'package:kazumi/pages/popular/popular_controller.dart';
 import 'package:kazumi/pages/popular/popular_module.dart';
+import 'package:kazumi/pages/popular/rule_discover_controller.dart';
 import 'package:kazumi/pages/route_error_page.dart';
 import 'package:kazumi/pages/search/search_module.dart';
 import 'package:kazumi/pages/settings/settings_module.dart';
@@ -44,6 +45,7 @@ final tabModule = createModule(
     c
       // Tab state survives tab switches, but is released with the whole shell.
       ..addSingleton<PopularController>(PopularController.new)
+      ..addSingleton<RuleDiscoverController>(RuleDiscoverController.new)
       ..addSingleton<TimelineController>(TimelineController.new)
       ..route(
         '/',

@@ -2,6 +2,7 @@ import 'dart:math';
 import 'package:kazumi/request/apis/bangumi_api.dart';
 import 'package:kazumi/modules/bangumi/bangumi_item.dart';
 import 'package:kazumi/services/network/bangumi_acceleration.dart';
+import 'package:kazumi/services/storage/storage.dart';
 import 'package:mobx/mobx.dart';
 
 part 'popular_controller.g.dart';
@@ -29,6 +30,16 @@ abstract class _PopularController with Store {
 
   @observable
   bool isTimeOut = false;
+
+  /// Shows rule listings (规则推荐) instead of Bangumi recommendations.
+  @observable
+  bool ruleMode = GStorage.getSetting(SettingsKeys.popularRuleMode);
+
+  @action
+  void setRuleMode(bool value) {
+    ruleMode = value;
+    GStorage.putSetting(SettingsKeys.popularRuleMode, value);
+  }
 
   bool get _bangumiMirrorEnabled =>
       BangumiAcceleration.current == BangumiAcceleration.mirror;

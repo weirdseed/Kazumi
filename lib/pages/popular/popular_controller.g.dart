@@ -89,6 +89,22 @@ mixin _$PopularController on _PopularController, Store {
     });
   }
 
+  late final _$ruleModeAtom =
+      Atom(name: '_PopularController.ruleMode', context: context);
+
+  @override
+  bool get ruleMode {
+    _$ruleModeAtom.reportRead();
+    return super.ruleMode;
+  }
+
+  @override
+  set ruleMode(bool value) {
+    _$ruleModeAtom.reportWrite(value, super.ruleMode, () {
+      super.ruleMode = value;
+    });
+  }
+
   late final _$queryBangumiByTrendAsyncAction =
       AsyncAction('_PopularController.queryBangumiByTrend', context: context);
 
@@ -107,6 +123,20 @@ mixin _$PopularController on _PopularController, Store {
         .run(() => super.queryBangumiByTag(type: type));
   }
 
+  late final _$_PopularControllerActionController =
+      ActionController(name: '_PopularController', context: context);
+
+  @override
+  void setRuleMode(bool value) {
+    final _$actionInfo = _$_PopularControllerActionController.startAction(
+        name: '_PopularController.setRuleMode');
+    try {
+      return super.setRuleMode(value);
+    } finally {
+      _$_PopularControllerActionController.endAction(_$actionInfo);
+    }
+  }
+
   @override
   String toString() {
     return '''
@@ -114,7 +144,8 @@ currentTag: ${currentTag},
 bangumiList: ${bangumiList},
 trendList: ${trendList},
 isLoadingMore: ${isLoadingMore},
-isTimeOut: ${isTimeOut}
+isTimeOut: ${isTimeOut},
+ruleMode: ${ruleMode}
     ''';
   }
 }

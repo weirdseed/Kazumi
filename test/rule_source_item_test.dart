@@ -27,6 +27,21 @@ void main() {
         isNot(base));
   });
 
+  test('a cover becomes the item image', () {
+    final item = ruleSourceBangumiItem(
+      pluginName: 'hanime1',
+      src: '/watch?v=1',
+      name: 'Example',
+      cover: 'https://example.com/c.jpg',
+    );
+
+    expect(item.images['large'], 'https://example.com/c.jpg');
+    expect(
+      ruleSourceBangumiItem(pluginName: 'a', src: 'b', name: 'c').images,
+      isEmpty,
+    );
+  });
+
   test('empty input still yields a non-zero id', () {
     expect(ruleSourceBangumiId('', ''), isNegative);
   });

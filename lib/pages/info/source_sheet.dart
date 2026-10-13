@@ -18,16 +18,13 @@ import 'package:kazumi/modules/bangumi/rule_source_item.dart';
 import 'package:kazumi/modules/search/plugin_search_module.dart';
 import 'package:kazumi/pages/collect/collect_controller.dart';
 import 'package:kazumi/pages/info/info_controller.dart';
-import 'package:kazumi/pages/video/video_playback_args.dart';
+import 'package:kazumi/pages/info/rule_source_playback.dart';
 import 'package:kazumi/plugins/anti_crawler_config.dart';
 import 'package:kazumi/plugins/plugins.dart';
 import 'package:kazumi/plugins/plugins_controller.dart';
 import 'package:kazumi/services/logging/logger.dart';
 import 'package:kazumi/services/plugin/captcha_verification_service.dart';
 import 'package:kazumi/services/plugin/plugin_search_service.dart';
-import 'package:kazumi/services/plugin/rule_engine_models.dart'
-    show RuleCancelToken;
-import 'package:kazumi/utils/device.dart';
 import 'package:mobx/mobx.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -148,39 +145,14 @@ class _SourceSheetState extends State<SourceSheet> with KazumiDialogOwner {
     if (mounted) KazumiDialog.showToast(message: '无法打开浏览器，请稍后重试');
   }
 
-  Future<void> _openSearchItem(String name, SearchItem searchItem) async {
-    if (dialogs.isRunning) return;
-    final plugin = _pluginFor(name);
-    await dialogs.run((task) async {
-      final cancelToken = RuleCancelToken();
-      final roads = await task.loading(
-        message: '正在获取播放列表',
-        barrierDismissible: isDesktop(),
-        onCancel: cancelToken.cancel,
-        action: () =>
-            plugin.queryChapterRoads(searchItem.src, cancelToken: cancelToken),
+  Future<void> _openSearchItem(String name, SearchItem searchItem) =>
+      openRuleSourceItem(
+        dialogs,
+        plugin: _pluginFor(name),
+        src: searchItem.src,
+        name: searchItem.name,
+        bangumiItem: _bangumiItem,
       );
-      if (roads.isEmpty) throw ChapterErrorException(plugin.name);
-      task.withContext((context) => context.pushNamed(
-            '/video/',
-            arguments: OnlineVideoPlaybackArgs(
-              bangumiItem: _bangumiItem ??
-                  ruleSourceBangumiItem(
-                    pluginName: plugin.name,
-                    src: searchItem.src,
-                    name: searchItem.name,
-                  ),
-              plugin: plugin,
-              title: searchItem.name,
-              src: searchItem.src,
-              roads: roads,
-            ),
-          ));
-    }, onError: (error, stackTrace) {
-      KazumiLogger().w('SourceSheet: failed to query playlist', error: error);
-      KazumiDialog.showToast(message: '未能获取播放列表，请重试或选择其他结果');
-    });
-  }
 
   void _showAliasPicker(String pluginName) {
     final item = _bangumiItem;

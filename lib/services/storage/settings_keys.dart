@@ -557,6 +557,23 @@ class SettingsKeys {
     false,
     group: SettingGroup.player,
   );
+  static const popularRuleMode = SettingKey<bool>(
+    'popularRuleMode',
+    false,
+    group: SettingGroup.interface,
+  );
+  static const ruleDiscoverPlugin = SettingKey<String>(
+    'ruleDiscoverPlugin',
+    '',
+    group: SettingGroup.interface,
+  );
+
+  /// JSON `{pluginName: {groupKey: [values]}}` of the last filter choices.
+  static const ruleDiscoverSelections = SettingKey<String>(
+    'ruleDiscoverSelections',
+    '{}',
+    group: SettingGroup.interface,
+  );
 
   static final List<SettingKey<Object?>> all = [
     hAenable,
@@ -661,6 +678,9 @@ class SettingsKeys {
     playerControllerLayerDisappearTime,
     defaultVolume,
     playerMuted,
+    popularRuleMode,
+    ruleDiscoverPlugin,
+    ruleDiscoverSelections,
   ];
 
   static List<SettingKey<Object?>> byGroup(SettingGroup group) {

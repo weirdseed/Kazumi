@@ -13,6 +13,7 @@ BangumiItem ruleSourceBangumiItem({
   required String pluginName,
   required String src,
   required String name,
+  String cover = '',
 }) {
   return BangumiItem(
     id: ruleSourceBangumiId(pluginName, src),
@@ -23,7 +24,7 @@ BangumiItem ruleSourceBangumiItem({
     airDate: '',
     airWeekday: 0,
     rank: 0,
-    images: {},
+    images: cover.isEmpty ? {} : {'large': cover, 'common': cover},
     tags: [],
     alias: [],
     ratingScore: 0.0,

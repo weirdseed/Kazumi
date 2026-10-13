@@ -19,6 +19,7 @@ class NetworkImgLayer extends StatelessWidget {
     this.color,
     this.colorBlendMode,
     this.borderRadius,
+    this.httpHeaders,
   });
 
   final String? src;
@@ -33,6 +34,9 @@ class NetworkImgLayer extends StatelessWidget {
   final Color? color;
   final BlendMode? colorBlendMode;
   final BorderRadius? borderRadius;
+
+  /// Extra request headers, e.g. a Referer for hotlink-protected covers.
+  final Map<String, String>? httpHeaders;
 
   static Widget heroFlightShuttleBuilder(
     BuildContext flightContext,
@@ -71,6 +75,7 @@ class NetworkImgLayer extends StatelessWidget {
       borderRadius: _borderRadius,
       child: CachedNetworkImage(
         imageUrl: imageUrl,
+        httpHeaders: httpHeaders,
         width: width,
         height: height,
         memCacheWidth: memCacheWidth,
