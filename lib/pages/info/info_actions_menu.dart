@@ -13,9 +13,16 @@ import 'package:saver_gallery/saver_gallery.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class InfoActionsMenu extends StatefulWidget {
-  const InfoActionsMenu({super.key, required this.bangumiItem});
+  const InfoActionsMenu({
+    super.key,
+    required this.bangumiItem,
+    this.externalUrl,
+  });
 
   final BangumiItem bangumiItem;
+
+  /// Page opened by "open in browser"; defaults to the Bangumi subject.
+  final Uri? externalUrl;
 
   @override
   State<InfoActionsMenu> createState() => _InfoActionsMenuState();
@@ -45,7 +52,8 @@ class _InfoActionsMenuState extends State<InfoActionsMenu> {
   Future<void> _openExternally() async {
     try {
       if (await launchUrl(
-        Uri.https('bangumi.tv', '/subject/${widget.bangumiItem.id}'),
+        widget.externalUrl ??
+            Uri.https('bangumi.tv', '/subject/${widget.bangumiItem.id}'),
         mode: LaunchMode.externalApplication,
       )) {
         return;
