@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:kazumi/services/plugin/rule_template.dart';
 
 /// Optional listing ("规则推荐") section of a rule.
@@ -18,6 +20,24 @@ class RuleDiscoverConfig {
   });
 
   static const empty = RuleDiscoverConfig();
+
+  /// Parses the rule editor's JSON text; empty text disables the section.
+  static RuleDiscoverConfig parseEditorText(String text) {
+    final trimmed = text.trim();
+    if (trimmed.isEmpty) return empty;
+    final Object? value;
+    try {
+      value = jsonDecode(trimmed);
+    } on FormatException catch (error) {
+      throw FormatException('规则推荐配置不是有效 JSON：${error.message}');
+    }
+    if (value is! Map) throw const FormatException('规则推荐配置必须是 JSON 对象');
+    final config = RuleDiscoverConfig.fromJson(
+      Map<String, dynamic>.from(value),
+    );
+    config.validate();
+    return config;
+  }
 
   final String url;
   final int pageStart;

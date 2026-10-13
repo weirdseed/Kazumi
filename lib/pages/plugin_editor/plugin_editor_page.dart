@@ -9,6 +9,7 @@ import 'package:kazumi/pages/plugin_editor/rule_management_widgets.dart';
 import 'package:kazumi/pages/plugin_editor/editor_form_widgets.dart';
 import 'package:kazumi/plugins/anti_crawler_config.dart';
 import 'package:kazumi/plugins/api_rule_config.dart';
+import 'package:kazumi/plugins/discover_rule_config.dart';
 import 'package:kazumi/plugins/plugins.dart';
 import 'package:kazumi/plugins/plugins_controller.dart';
 import 'package:kazumi/request/config/api_endpoints.dart';
@@ -136,6 +137,9 @@ abstract final class _RuleEditorText {
   static const captchaScript = '验证脚本（JavaScript）';
   static const captchaScriptHelper =
       '可调用 KazumiCaptcha.log、clicked、done 和 fail。';
+  static const groupDiscover = '规则推荐';
+  static const discoverConfig = '推荐列表配置（JSON）';
+  static const discoverConfigHelper = '在首页规则推荐中浏览本站列表，留空表示不启用。';
 }
 
 class PluginEditorPage extends StatefulWidget {
@@ -237,6 +241,8 @@ class _PluginEditorPageState extends State<PluginEditorPage> {
   final TextEditingController captchaDetectValueController =
       TextEditingController();
   final TextEditingController captchaScriptController = TextEditingController();
+  final TextEditingController discoverConfigController =
+      TextEditingController();
   bool antiCrawlerEnabled = false;
   int captchaType = CaptchaType.imageCaptcha;
   int captchaDetectType = CaptchaDetectType.xpath;
@@ -350,6 +356,9 @@ class _PluginEditorPageState extends State<PluginEditorPage> {
     captchaDetectValueController.text =
         plugin.antiCrawlerConfig.captchaDetectValue;
     captchaScriptController.text = plugin.antiCrawlerConfig.captchaScript;
+    discoverConfigController.text = plugin.discoverConfig.hasContent
+        ? _prettyJson(plugin.discoverConfig.toJson())
+        : '';
   }
 
   @override
@@ -395,6 +404,7 @@ class _PluginEditorPageState extends State<PluginEditorPage> {
     captchaButtonController.dispose();
     captchaDetectValueController.dispose();
     captchaScriptController.dispose();
+    discoverConfigController.dispose();
     super.dispose();
   }
 
@@ -655,6 +665,13 @@ class _PluginEditorPageState extends State<PluginEditorPage> {
                   : const SizedBox.shrink(),
             ),
           ],
+          const EditorSubheader(label: _RuleEditorText.groupDiscover),
+          EditorTextField(
+            controller: discoverConfigController,
+            label: _RuleEditorText.discoverConfig,
+            helper: _RuleEditorText.discoverConfigHelper,
+            maxLines: 8,
+          ),
         ],
       ),
     );
@@ -1012,6 +1029,8 @@ class _PluginEditorPageState extends State<PluginEditorPage> {
         captchaDetectValue: captchaDetectValueController.text,
         captchaScript: captchaScriptController.text,
       ),
+      discoverConfig:
+          RuleDiscoverConfig.parseEditorText(discoverConfigController.text),
     );
   }
 

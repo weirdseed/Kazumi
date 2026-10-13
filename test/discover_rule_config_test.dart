@@ -120,6 +120,38 @@ void main() {
     RuleDiscoverConfig.fromJson(_discover).validate();
   });
 
+  test('editor text parses, validates and treats blank as disabled', () {
+    expect(RuleDiscoverConfig.parseEditorText('  '), RuleDiscoverConfig.empty);
+    expect(
+      RuleDiscoverConfig.parseEditorText(jsonEncode(_discover)).isConfigured,
+      isTrue,
+    );
+    expect(
+      () => RuleDiscoverConfig.parseEditorText('{oops'),
+      throwsA(
+        isA<FormatException>().having(
+          (e) => e.message,
+          'message',
+          contains('不是有效 JSON'),
+        ),
+      ),
+    );
+    expect(
+      () => RuleDiscoverConfig.parseEditorText('[]'),
+      throwsFormatException,
+    );
+    expect(
+      () => RuleDiscoverConfig.parseEditorText('{"url": "https://e.com"}'),
+      throwsA(
+        isA<FormatException>().having(
+          (e) => e.message,
+          'message',
+          contains('布局'),
+        ),
+      ),
+    );
+  });
+
   test('updates keep a locally added discover config', () {
     final local = Plugin.fromJson({..._rule, 'discoverConfig': _discover});
     final remote = Plugin.fromJson({..._rule, 'version': '2.0'});
