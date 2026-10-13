@@ -5,6 +5,7 @@ import 'package:kazumi/modules/roads/road_module.dart';
 import 'package:kazumi/modules/search/plugin_search_module.dart';
 import 'package:kazumi/plugins/api_rule_config.dart';
 import 'package:kazumi/services/plugin/rule_engine_models.dart';
+import 'package:kazumi/services/plugin/rule_template.dart';
 import 'package:kazumi/utils/episode_url.dart';
 
 class ApiRuleFormatException implements Exception {
@@ -517,16 +518,11 @@ class ApiRuleStrategy {
     Map<String, Object?> variables, {
     bool encode = false,
   }) {
-    return template.replaceAllMapped(
-      RegExp(r'(?<![A-Za-z0-9_])@([A-Za-z_][A-Za-z0-9_]*)'),
-      (match) {
-        final name = match.group(1)!;
-        if (!variables.containsKey(name)) {
-          throw ApiRuleFormatException('缺少模板变量 @$name');
-        }
-        final value = variables[name]?.toString() ?? '';
-        return encode ? Uri.encodeComponent(value) : value;
-      },
+    return renderRuleTemplate(
+      template,
+      variables,
+      encode: encode ? Uri.encodeComponent : null,
+      onMissing: (name) => ApiRuleFormatException('缺少模板变量 @$name'),
     );
   }
 
