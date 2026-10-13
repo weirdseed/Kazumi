@@ -8,6 +8,7 @@ class RuleDetailConfig {
     this.summary = '',
     this.tags = '',
     this.info = '',
+    this.tagFilter = '',
   });
 
   static const empty = RuleDetailConfig();
@@ -22,6 +23,10 @@ class RuleDetailConfig {
   /// Each matched node is one info line, e.g. "年份：2024".
   final String info;
 
+  /// Key of the discover filter group a tag maps to: tapping a tag lists
+  /// the rule's discover listing filtered by it, like Bangumi tag search.
+  final String tagFilter;
+
   factory RuleDetailConfig.fromJson(Map<String, dynamic> json) {
     String read(String key) =>
         json[key] is String ? (json[key] as String).trim() : '';
@@ -30,6 +35,7 @@ class RuleDetailConfig {
       summary: read('summary'),
       tags: read('tags'),
       info: read('info'),
+      tagFilter: read('tagFilter'),
     );
   }
 
@@ -38,6 +44,7 @@ class RuleDetailConfig {
     if (summary.isNotEmpty) 'summary': summary,
     if (tags.isNotEmpty) 'tags': tags,
     if (info.isNotEmpty) 'info': info,
+    if (tagFilter.isNotEmpty) 'tagFilter': tagFilter,
   };
 
   bool get hasContent =>
@@ -59,6 +66,12 @@ class RuleDetailConfig {
     if (value is! Map) throw const FormatException('详情配置必须是 JSON 对象');
     for (final entry in value.entries) {
       final expression = entry.value;
+      if (entry.key == 'tagFilter' ||
+          (entry.key == 'cover' &&
+              expression is String &&
+              expression.startsWith('http'))) {
+        continue;
+      }
       if (expression is String &&
           expression.isNotEmpty &&
           !expression.startsWith('/') &&

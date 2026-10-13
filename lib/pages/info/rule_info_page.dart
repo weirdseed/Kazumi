@@ -11,6 +11,7 @@ import 'package:kazumi/modules/bangumi/rule_source_item.dart';
 import 'package:kazumi/modules/roads/road_module.dart';
 import 'package:kazumi/pages/info/info_actions_menu.dart';
 import 'package:kazumi/pages/info/info_page.dart';
+import 'package:kazumi/pages/info/rule_tag_page.dart';
 import 'package:kazumi/pages/video/video_playback_args.dart';
 import 'package:kazumi/plugins/plugins.dart';
 import 'package:kazumi/plugins/plugins_controller.dart';
@@ -193,6 +194,22 @@ class _RuleInfoPageState extends State<RuleInfoPage>
     return null;
   }
 
+  /// Like Bangumi tags: list this site's items with the tag when the rule
+  /// maps tags to a discover filter, otherwise search the rules for it.
+  void _openTag(String tag) {
+    final key = _plugin.detailConfig.tagFilter;
+    if (key.isNotEmpty &&
+        _plugin.supportsDiscover &&
+        _plugin.discoverConfig.filter(key) != null) {
+      context.pushNamed(
+        '/info/rule/tag',
+        arguments: RuleTagArgs(plugin: _plugin, tag: tag),
+      );
+      return;
+    }
+    context.pushNamed('/search/rule/${Uri.encodeComponent(tag)}');
+  }
+
   Uri? get _externalUrl {
     final uri = Uri.tryParse(
       normalizeEpisodeUrl(_plugin.baseUrl, widget.args.src),
@@ -353,9 +370,7 @@ class _RuleInfoPageState extends State<RuleInfoPage>
                               : detail.tags.take(_foldedTagCount))
                         ActionChip(
                           label: Text(tag),
-                          onPressed: () => context.pushNamed(
-                            '/search/rule/${Uri.encodeComponent(tag)}',
-                          ),
+                          onPressed: () => _openTag(tag),
                         ),
                       if (!_fullTag && detail.tags.length > _foldedTagCount)
                         ActionChip(

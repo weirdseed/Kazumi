@@ -231,7 +231,9 @@ class ApiRuleStrategy {
       }
     }
 
-    final cover = values(detail.cover).firstOrNull ?? '';
+    final cover = detail.cover.startsWith(r'$')
+        ? values(detail.cover).firstOrNull ?? ''
+        : _renderCover(document, detail.cover);
     return RuleDetail(
       cover: cover.isEmpty ? '' : normalizeEpisodeUrl(config.baseUrl, cover),
       summary: values(detail.summary).join(' '),

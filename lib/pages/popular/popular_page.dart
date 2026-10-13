@@ -406,7 +406,9 @@ class _PopularPageState extends State<PopularPage> with KazumiDialogOwner {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          // Groups without options only serve tag lookups from detail pages.
           for (final group in config.filters)
+            if (group.optionCount > 0)
             SizedBox(
               height: 44,
               child: Row(children: [

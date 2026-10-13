@@ -134,7 +134,8 @@ class RuleDiscoverConfig {
         group.key: () {
           final known = group.values.toSet();
           final kept = (stored[group.key] ?? const <String>[])
-              .where(known.contains)
+              .where((value) =>
+                  known.contains(value) || (group.open && value.isNotEmpty))
               .toList();
           if (!stored.containsKey(group.key)) return group.defaultValues();
           if (group.multiple) return kept;
@@ -197,9 +198,13 @@ class DiscoverFilterGroup {
     this.separator = ',',
     this.defaults = const [],
     this.sections = const [],
+    this.open = false,
   });
 
   final String key;
+
+  /// Accepts values outside [sections], e.g. any tag a detail page shows.
+  final bool open;
   final String label;
 
   /// Query parameter name; empty means the value fills `@key` in the URL.
@@ -225,6 +230,7 @@ class DiscoverFilterGroup {
       label: _string(json['label']),
       param: _string(json['param']),
       multiple: json['multiple'] == true,
+      open: json['open'] == true,
       separator: json['separator'] is String ? json['separator'] : ',',
       defaults: _list(json['default']).map((item) => item.toString()).toList(),
       sections: [
@@ -239,6 +245,7 @@ class DiscoverFilterGroup {
     if (label.isNotEmpty) 'label': label,
     if (param.isNotEmpty) 'param': param,
     if (multiple) 'multiple': true,
+    if (open) 'open': true,
     if (separator != ',') 'separator': separator,
     if (defaults.isNotEmpty) 'default': defaults,
     if (sections.length == 1 && sections.single.label.isEmpty)

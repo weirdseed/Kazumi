@@ -3,6 +3,7 @@ import 'package:kazumi/modules/bangumi/bangumi_item.dart';
 import 'package:kazumi/pages/info/info_controller.dart';
 import 'package:kazumi/pages/info/info_page.dart';
 import 'package:kazumi/pages/info/rule_info_page.dart';
+import 'package:kazumi/pages/info/rule_tag_page.dart';
 import 'package:kazumi/pages/route_error_page.dart';
 
 final infoModule = createModule(
@@ -30,6 +31,16 @@ final infoModule = createModule(
           return const RouteErrorPage(message: '规则详情参数无效，请返回后重新打开。');
         }
         return RuleInfoPage(args: args);
+      },
+    );
+    c.route(
+      '/rule/tag',
+      child: (context, state) {
+        final args = state.arguments;
+        if (args is! RuleTagArgs) {
+          return const RouteErrorPage(message: '标签参数无效，请返回后重新打开。');
+        }
+        return RuleTagPage(args: args);
       },
     );
   },

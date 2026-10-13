@@ -59,7 +59,7 @@ void main() {
   test('reads details by JSONPath for API chapter rules', () async {
     final engine = RuleEngine(
       requestExecutor: _FakeExecutor([
-        '{"id": "v1", "title": "Video", "body": "  Line one\\nline two ",'
+        '{"id": "v1", "n": 3, "title": "Video", "body": "  Line one\\nline two ",'
             ' "tags": [{"id": "dance"}, {"id": "mmd"}]}',
       ]),
       logFailures: false,
@@ -87,8 +87,10 @@ void main() {
       }),
       antiCrawlerConfig: AntiCrawlerConfig.empty(),
       detailConfig: const RuleDetailConfig(
+        cover: r'https://img.example.com/{$.id}/t-{$.n:02}.jpg',
         summary: r'$.body',
         tags: r'$.tags[*].id',
+        tagFilter: 'tags',
       ),
     );
 
@@ -97,6 +99,7 @@ void main() {
     expect(trace.roads.single.data, ['https://example.com/video/v1']);
     expect(trace.detail.summary, 'Line one line two');
     expect(trace.detail.tags, ['dance', 'mmd']);
+    expect(trace.detail.cover, 'https://img.example.com/v1/t-03.jpg');
   });
 
   test('follows a second request for media episodes', () async {

@@ -86,6 +86,35 @@ void main() {
     );
   });
 
+  test('open groups keep values outside their options', () {
+    final config = RuleDiscoverConfig.fromJson({
+      'url': 'https://example.com/list',
+      'filters': [
+        {'key': 'tags', 'param': 'tags', 'multiple': true, 'open': true},
+        {
+          'key': 'sort',
+          'param': 'sort',
+          'options': ['new', 'hot'],
+        },
+      ],
+      'layouts': [
+        {'list': '//li', 'name': '//a'},
+      ],
+    });
+
+    expect(
+      config.sanitize({
+        'tags': ['anything', ''],
+        'sort': ['bogus'],
+      }),
+      {
+        'tags': ['anything'],
+        'sort': ['new'],
+      },
+    );
+    expect(config.filter('tags')!.toJson()['open'], isTrue);
+  });
+
   test('validate reports undeclared URL variables and bad regexes', () {
     expect(
       () => RuleDiscoverConfig.fromJson({
