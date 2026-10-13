@@ -470,6 +470,7 @@ abstract class _PluginsController with Store {
     if (local != null && !_remoteIsNewer(local.version, remotePlugin.version)) {
       return (result: PluginUpdateResult.notNewer, plugin: null);
     }
+    if (local != null) remotePlugin.inheritLocalExtensions(local);
     return (result: PluginUpdateResult.updated, plugin: remotePlugin);
   }
 

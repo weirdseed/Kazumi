@@ -2,6 +2,7 @@ import 'package:kazumi/modules/roads/road_module.dart';
 import 'package:kazumi/modules/search/plugin_search_module.dart';
 import 'package:kazumi/plugins/anti_crawler_config.dart';
 import 'package:kazumi/plugins/api_rule_config.dart';
+import 'package:kazumi/plugins/discover_rule_config.dart';
 import 'package:kazumi/request/config/api_endpoints.dart';
 import 'package:kazumi/services/plugin/api_rule_engine.dart';
 import 'package:kazumi/utils/episode_url.dart';
@@ -47,6 +48,7 @@ class Plugin {
   ApiSearchConfig searchApiConfig;
   ApiChapterConfig chapterApiConfig;
   AntiCrawlerConfig antiCrawlerConfig;
+  RuleDiscoverConfig discoverConfig;
 
   Plugin({
     required this.api,
@@ -73,6 +75,7 @@ class Plugin {
     ApiSearchConfig? searchApiConfig,
     ApiChapterConfig? chapterApiConfig,
     AntiCrawlerConfig? antiCrawlerConfig,
+    this.discoverConfig = RuleDiscoverConfig.empty,
   })  : searchApiConfig = searchApiConfig ?? ApiSearchConfig(),
         chapterApiConfig = chapterApiConfig ?? ApiChapterConfig(),
         antiCrawlerConfig = antiCrawlerConfig ?? AntiCrawlerConfig.empty();
@@ -115,6 +118,11 @@ class Plugin {
               Map<String, dynamic>.from(json['antiCrawlerConfig']),
             )
           : AntiCrawlerConfig.empty(),
+      discoverConfig: json['discoverConfig'] is Map
+          ? RuleDiscoverConfig.fromJson(
+              Map<String, dynamic>.from(json['discoverConfig']),
+            )
+          : RuleDiscoverConfig.empty,
     );
   }
 
@@ -178,7 +186,16 @@ class Plugin {
           chapterApiConfig.request.url.isNotEmpty)
         'chapterApiConfig': chapterApiConfig.toJson(),
       'antiCrawlerConfig': antiCrawlerConfig.toJson(),
+      if (discoverConfig.hasContent) 'discoverConfig': discoverConfig.toJson(),
     };
+  }
+
+  bool get supportsDiscover => discoverConfig.isConfigured;
+
+  /// Keeps sections added locally when an upstream update does not ship them,
+  /// so updating an official rule does not drop the user's additions.
+  void inheritLocalExtensions(Plugin local) {
+    if (!discoverConfig.hasContent) discoverConfig = local.discoverConfig;
   }
 
   bool get usesApiSearch => searchMode == RuleMode.api;
@@ -201,6 +218,7 @@ class Plugin {
         chapterApiConfig: chapterApiConfig,
         antiCrawlerConfig: antiCrawlerConfig,
         userAgent: userAgent,
+        discoverConfig: discoverConfig,
       );
 
   Future<RuleSearchTrace> traceSearch(
