@@ -223,6 +223,10 @@ class Plugin {
 
   bool get supportsSiteComments => commentConfig.isConfigured;
 
+  /// Episode URLs are media files, so playback skips the WebView parser.
+  bool get servesDirectMedia =>
+      chapterMode == RuleMode.api && chapterApiConfig.directMedia;
+
   /// Keeps sections added locally when an upstream update does not ship them,
   /// so updating an official rule does not drop the user's additions.
   void inheritLocalExtensions(Plugin local) {

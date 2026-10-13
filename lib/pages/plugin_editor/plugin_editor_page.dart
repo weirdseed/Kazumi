@@ -1147,6 +1147,10 @@ class _PluginEditorPageState extends State<PluginEditorPage> {
                 '播放页查询参数',
               ),
             ),
+      // No fields for these yet; keep what the rule declares.
+      follow: widget.plugin.chapterApiConfig.follow,
+      exclude: widget.plugin.chapterApiConfig.exclude,
+      directMedia: widget.plugin.chapterApiConfig.directMedia,
     );
     if (chapterMode != RuleMode.api) return config;
     if (config.request.url.isEmpty) {

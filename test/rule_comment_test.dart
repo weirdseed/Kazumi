@@ -93,6 +93,49 @@ void main() {
     );
   });
 
+  test('reads JSON comments with an avatar template', () async {
+    final executor = _FakeExecutor([
+      '{"results": ['
+          '{"body": " Nice\\n video ", "createdAt": "2026-10-04T09:29:30.000Z",'
+          ' "user": {"name": "Alice", "avatar": {"id": "a1", "name": "x.jpg"}}},'
+          '{"body": "Hi", "createdAt": "", "user": {"name": "Bob", "avatar": null}},'
+          '{"body": "", "user": {"name": "Empty"}}'
+          ']}',
+    ]);
+    final engine = RuleEngine(requestExecutor: executor, logFailures: false);
+    final rule = RuleCommentConfig.fromJson({
+      'request': {
+        'url': 'https://api.example.com/video/@src/comments?page=@page',
+      },
+      'format': 'json',
+      'list': r'$.results[*]',
+      'user': r'$.user.name',
+      'avatar':
+          r'https://img.example.com/{$.user.avatar.id}/{$.user.avatar.name}',
+      'content': r'$.body',
+      'time': r'$.createdAt',
+      'paged': true,
+      'pageStart': 0,
+    });
+
+    final trace = await engine.queryComments(
+      _config(rule),
+      const RuleCommentQuery(
+        pageUrl: 'https://cdn.example.com/v.mp4',
+        src: 'v1',
+      ),
+    );
+
+    expect(
+      executor.requests.single.url,
+      'https://api.example.com/video/v1/comments?page=0',
+    );
+    expect(trace.comments.map((c) => c.content), ['Nice video', 'Hi']);
+    expect(trace.comments.first.avatar, 'https://img.example.com/a1/x.jpg');
+    expect(trace.comments.first.time, matches(RegExp(r'^2026-10-0[45]$')));
+    expect(trace.comments.last.avatar, '');
+  });
+
   test('regex variables read inline scripts', () {
     const strategy = XPathRuleStrategy();
 

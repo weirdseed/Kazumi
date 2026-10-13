@@ -612,11 +612,19 @@ abstract class _VideoPageController with Store implements Disposable {
     });
 
     try {
-      final source = await _videoSourceService!.resolve(
-        url,
-        useLegacyParser: currentPlugin.useLegacyParser,
-        offset: offset,
-      );
+      // Rules whose episode URLs are the media files themselves skip the
+      // WebView, which some sites (e.g. iwara) block behind a challenge.
+      final source = currentPlugin.servesDirectMedia
+          ? VideoSource(
+              url: url,
+              offset: offset,
+              type: VideoSourceType.online,
+            )
+          : await _videoSourceService!.resolve(
+              url,
+              useLegacyParser: currentPlugin.useLegacyParser,
+              offset: offset,
+            );
 
       if (session.isStale) {
         return;

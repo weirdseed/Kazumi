@@ -156,6 +156,39 @@ class ApiRuleStrategy {
     return RuleDiscoverParseResult(items: const [], diagnostics: diagnostics);
   }
 
+  /// Parses comments from a JSON API response, see [RuleCommentFormat.json].
+  List<RuleComment> parseComments(String raw, RuleExecutionConfig config) {
+    final comment = config.commentConfig;
+    final document = decodeResponse(raw);
+    String read(Object? node, String path) => path.isEmpty
+        ? ''
+        : _stringValue(RestrictedJsonPath.readFirst(node, path))
+            .replaceAll(RegExp(r'\s+'), ' ')
+            .trim();
+    final comments = <RuleComment>[];
+    for (final node in RestrictedJsonPath.read(document, comment.list)) {
+      final content = read(node, comment.content);
+      if (content.isEmpty) continue;
+      final avatar = _renderCover(node, comment.avatar);
+      final time = read(node, comment.time);
+      final parsedTime = DateTime.tryParse(time)?.toLocal();
+      comments.add(RuleComment(
+        content: content,
+        user: read(node, comment.user),
+        avatar: avatar.isEmpty ? '' : normalizeEpisodeUrl(config.baseUrl, avatar),
+        time: parsedTime == null
+            ? time
+            : '${parsedTime.year}-${_twoDigits(parsedTime.month)}-'
+                '${_twoDigits(parsedTime.day)}',
+      ));
+    }
+    return comments;
+  }
+
+  static String _twoDigits(int value) => value.toString().padLeft(2, '0');
+
+  static final _wholeVariable = RegExp(r'^@[A-Za-z_][A-Za-z0-9_]*$');
+
   bool isExcluded(Object? node, List<ApiItemFilter> exclude) =>
       exclude.any((filter) =>
           RestrictedJsonPath.readFirst(node, filter.path) == filter.value);
@@ -228,7 +261,14 @@ class ApiRuleStrategy {
     if (config.url.trim().isEmpty) {
       throw const ApiRuleFormatException('API 请求 URL 不能为空');
     }
-    final url = _renderTemplate(config.url.trim(), variables, encode: true);
+    // A template that is a single variable takes a whole URL (e.g. one the
+    // previous response handed out), which must not be percent-encoded.
+    final template = config.url.trim();
+    final url = _renderTemplate(
+      template,
+      variables,
+      encode: !_wholeVariable.hasMatch(template),
+    );
     final uri = Uri.tryParse(url);
     if (uri == null || !uri.hasScheme || uri.host.isEmpty) {
       throw ApiRuleFormatException('API 请求 URL 无效: $url');
@@ -289,15 +329,15 @@ class ApiRuleStrategy {
     );
   }
 
-  RuleChapterParseResult parseChapters(
+  /// Reads [ApiChapterConfig.variables] from a chapter response, plus
+  /// `@source`.
+  Map<String, Object?> readChapterVariables(
     String raw,
     ApiChapterConfig config, {
     required String source,
-    required String baseUrl,
   }) {
-    validateChapterConfig(config);
     final document = decodeResponse(raw);
-    final rootVariables = <String, Object?>{'source': source};
+    final variables = <String, Object?>{'source': source};
     for (final entry in config.variables.entries) {
       final value = RestrictedJsonPath.readFirst(document, entry.value);
       if (value == null) {
@@ -305,8 +345,24 @@ class ApiRuleStrategy {
           '章节响应变量 ${entry.key} 未匹配到值: ${entry.value}',
         );
       }
-      rootVariables[entry.key] = value;
+      variables[entry.key] = value;
     }
+    return variables;
+  }
+
+  /// [variables] from an earlier response (see [ApiChapterConfig.follow])
+  /// replace reading them from [raw].
+  RuleChapterParseResult parseChapters(
+    String raw,
+    ApiChapterConfig config, {
+    required String source,
+    required String baseUrl,
+    Map<String, Object?>? variables,
+  }) {
+    validateChapterConfig(config);
+    final document = decodeResponse(raw);
+    final rootVariables =
+        variables ?? readChapterVariables(raw, config, source: source);
     final diagnostics = <String>[];
     final roads = config.format == ApiChapterFormat.delimited
         ? _parseDelimited(
@@ -360,6 +416,7 @@ class ApiRuleStrategy {
             episodeIndex++) {
           try {
             final episodeNode = episodeNodes[episodeIndex];
+            if (isExcluded(episodeNode, config.exclude)) continue;
             final episodeName = _stringValue(
               RestrictedJsonPath.readFirst(
                 episodeNode,

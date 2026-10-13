@@ -97,6 +97,10 @@ class RuleCommentConfig {
     if (format == RuleCommentFormat.jsonHtml && htmlPath.isEmpty) {
       throw const FormatException('jsonHtml 格式需要填写 htmlPath');
     }
+    if (format == RuleCommentFormat.json &&
+        (!list.startsWith(r'$') || !content.startsWith(r'$'))) {
+      throw const FormatException('json 格式的 list 和 content 需要以 \$ 开头');
+    }
     final names = <String>{};
     for (final spec in variables) {
       if (spec.name.isEmpty || (spec.xpath.isEmpty && spec.regex.isEmpty)) {
@@ -138,7 +142,12 @@ abstract final class RuleCommentFormat {
   /// JSON whose [RuleCommentConfig.htmlPath] field holds the comment HTML.
   static const jsonHtml = 'jsonHtml';
 
-  static String normalize(Object? value) => value == jsonHtml ? jsonHtml : html;
+  /// A JSON API: fields are JSONPaths, the avatar may be a `{$.path}`
+  /// template like discover covers.
+  static const json = 'json';
+
+  static String normalize(Object? value) =>
+      value == jsonHtml || value == json ? value as String : html;
 }
 
 /// A value read from the episode page, by XPath or by a regex group.

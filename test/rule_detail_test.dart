@@ -99,6 +99,54 @@ void main() {
     expect(trace.detail.tags, ['dance', 'mmd']);
   });
 
+  test('follows a second request for media episodes', () async {
+    final executor = _FakeExecutor([
+      '{"id": "v1", "body": "About", "fileUrl": "https://files.example.com/f?h=1"}',
+      '[{"name": "360", "src": {"view": "//cdn.example.com/v_360.mp4"}},'
+          ' {"name": "preview", "src": {"view": "//cdn.example.com/p.mp4"}}]',
+    ]);
+    final engine = RuleEngine(requestExecutor: executor, logFailures: false);
+    final config = RuleExecutionConfig(
+      pluginName: 'follow',
+      baseUrl: 'https://example.com/',
+      usePost: false,
+      searchMode: RuleMode.api,
+      chapterMode: RuleMode.api,
+      searchUrl: '',
+      searchList: '',
+      searchName: '',
+      searchResult: '',
+      chapterRoads: '',
+      chapterResult: '',
+      searchApiConfig: ApiSearchConfig(),
+      chapterApiConfig: ApiChapterConfig.fromJson({
+        'request': {'url': 'https://api.example.com/video/@source'},
+        'variables': {'fileUrl': r'$.fileUrl'},
+        'follow': {'url': '@fileUrl'},
+        'roadsPath': '',
+        'episodesPath': r'$[*]',
+        'episodeNamePath': r'$.name',
+        'episodeUrlPath': r'$.src.view',
+        'exclude': [
+          {'path': r'$.name', 'value': 'preview'},
+        ],
+        'directMedia': true,
+      }),
+      antiCrawlerConfig: AntiCrawlerConfig.empty(),
+      detailConfig: const RuleDetailConfig(summary: r'$.body'),
+    );
+
+    final trace = await engine.queryDetail(config, 'v1');
+
+    expect(executor.requests.map((r) => r.url), [
+      'https://api.example.com/video/v1',
+      'https://files.example.com/f?h=1',
+    ]);
+    expect(trace.roads.single.identifier, ['360']);
+    expect(trace.roads.single.data, ['https://cdn.example.com/v_360.mp4']);
+    expect(trace.detail.summary, 'About');
+  });
+
   test('config round-trips and the editor rejects relative XPaths', () {
     final plugin = Plugin.fromJson({
       ..._rule,

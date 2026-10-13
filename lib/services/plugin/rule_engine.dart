@@ -172,8 +172,8 @@ class RuleEngine {
     if (config.detailConfig.hasContent) {
       try {
         detail = config.chapterMode == RuleMode.api
-            ? _apiStrategy.parseDetail(chapters.rawResponse, config)
-            : _xpathStrategy.parseDetail(chapters.rawResponse, config);
+            ? _apiStrategy.parseDetail(chapters.pageResponse, config)
+            : _xpathStrategy.parseDetail(chapters.pageResponse, config);
         _logDiagnostics(config, 'detail', detail.diagnostics);
       } catch (error, stackTrace) {
         _logFailure(config, 'detail parsing', error, stackTrace);
@@ -226,11 +226,17 @@ class RuleEngine {
         wrapError: wrap,
         cancelToken: cancelToken,
       );
-      final html = comment.format == RuleCommentFormat.jsonHtml
-          ? _apiStrategy.decodeHtmlField(raw, comment.htmlPath)
-          : raw;
+      final List<RuleComment> comments;
+      if (comment.format == RuleCommentFormat.json) {
+        comments = _apiStrategy.parseComments(raw, config);
+      } else {
+        final html = comment.format == RuleCommentFormat.jsonHtml
+            ? _apiStrategy.decodeHtmlField(raw, comment.htmlPath)
+            : raw;
+        comments = _xpathStrategy.parseComments(html, config);
+      }
       return RuleCommentTrace(
-        comments: _xpathStrategy.parseComments(html, config),
+        comments: comments,
         variables: variables,
         rawResponse: raw,
       );
@@ -301,13 +307,41 @@ class RuleEngine {
           ChapterErrorException(config.pluginName, cause: error),
       cancelToken: cancelToken,
     );
+    final follow = config.chapterMode == RuleMode.api
+        ? config.chapterApiConfig.follow
+        : null;
+    var episodesRaw = raw;
+    Map<String, Object?>? variables;
+    if (follow != null) {
+      late final PreparedRuleRequest followRequest;
+      try {
+        variables = _apiStrategy.readChapterVariables(
+          raw,
+          config.chapterApiConfig,
+          source: source,
+        );
+        followRequest = _apiStrategy.prepareRequest(follow, variables);
+      } catch (error, stackTrace) {
+        _logFailure(config, 'chapter follow preparation', error, stackTrace);
+        throw ChapterErrorException(config.pluginName, cause: error);
+      }
+      episodesRaw = await _executeRequest(
+        followRequest,
+        config,
+        phase: 'chapter follow request',
+        wrapError: (error) =>
+            ChapterErrorException(config.pluginName, cause: error),
+        cancelToken: cancelToken,
+      );
+    }
     try {
       final parsed = config.chapterMode == RuleMode.api
           ? _apiStrategy.parseChapters(
-              raw,
+              episodesRaw,
               config.chapterApiConfig,
               source: source,
               baseUrl: config.baseUrl,
+              variables: variables,
             )
           : _xpathStrategy.parseChapters(raw, config);
       if (parsed.roads.isEmpty) {
@@ -315,7 +349,8 @@ class RuleEngine {
       }
       _logDiagnostics(config, 'chapter', parsed.diagnostics);
       return RuleChapterTrace(
-        rawResponse: raw,
+        rawResponse: episodesRaw,
+        pageResponse: raw,
         roads: parsed.roads,
         diagnostics: parsed.diagnostics,
       );

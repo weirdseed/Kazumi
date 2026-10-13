@@ -183,11 +183,17 @@ class RuleSearchTrace {
 class RuleChapterTrace {
   const RuleChapterTrace({
     required this.rawResponse,
+    String? pageResponse,
     required this.roads,
     required this.diagnostics,
-  });
+  }) : pageResponse = pageResponse ?? rawResponse;
 
+  /// Response the episodes were parsed from.
   final String rawResponse;
+
+  /// The first response; differs from [rawResponse] when the rule follows a
+  /// second request. Details are read from it.
+  final String pageResponse;
   final List<Road> roads;
   final List<String> diagnostics;
 }

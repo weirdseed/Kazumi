@@ -178,6 +178,17 @@ class ApiChapterConfig {
   /// Optional final playback page template used instead of a response URL.
   ApiEpisodePageConfig? episodePage;
 
+  /// Optional second request, rendered with [variables] read from the first
+  /// response; episodes are then parsed from its response. For sites whose
+  /// media list sits behind a URL the first response hands out.
+  ApiRequestConfig? follow;
+
+  /// Episodes to skip, see [ApiItemFilter].
+  List<ApiItemFilter> exclude;
+
+  /// Episode URLs are media files, played without the WebView parser.
+  bool directMedia;
+
   ApiChapterConfig({
     ApiRequestConfig? request,
     this.format = ApiChapterFormat.nested,
@@ -193,6 +204,9 @@ class ApiChapterConfig {
     this.fieldSeparator = r'$',
     Map<String, String>? variables,
     this.episodePage,
+    this.follow,
+    this.exclude = const [],
+    this.directMedia = false,
   })  : request = request ?? ApiRequestConfig(),
         variables = variables ?? <String, String>{};
 
@@ -217,6 +231,11 @@ class ApiChapterConfig {
       episodePage: json['episodePage'] is Map
           ? ApiEpisodePageConfig.fromJson(_asStringMap(json['episodePage']))
           : null,
+      follow: json['follow'] is Map
+          ? ApiRequestConfig.fromJson(_asStringMap(json['follow']))
+          : null,
+      exclude: ApiItemFilter.listFromJson(json['exclude']),
+      directMedia: json['directMedia'] == true,
     );
   }
 
@@ -254,6 +273,10 @@ class ApiChapterConfig {
         },
         if (variables.isNotEmpty) 'variables': variables,
         if (episodePage != null) 'episodePage': episodePage!.toJson(),
+        if (follow != null) 'follow': follow!.toJson(),
+        if (exclude.isNotEmpty)
+          'exclude': exclude.map((filter) => filter.toJson()).toList(),
+        if (directMedia) 'directMedia': true,
       };
 }
 
