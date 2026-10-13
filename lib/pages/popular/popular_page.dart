@@ -569,8 +569,10 @@ class _PopularPageState extends State<PopularPage> with KazumiDialogOwner {
     if (width > LayoutBreakpoint.medium['width']!) {
       crossCount = landscape ? 4 : 6;
     }
+    // Covers often live on third-party image hosts that reject a foreign
+    // Referer, so only send one when the rule asks for it.
     final headers = <String, String>{
-      'referer': plugin.referer.isNotEmpty ? plugin.referer : plugin.baseUrl,
+      if (plugin.referer.isNotEmpty) 'referer': plugin.referer,
       if (plugin.userAgent.isNotEmpty) 'user-agent': plugin.userAgent,
     };
     const padding = 8.0 + StyleString.cardSpace;
