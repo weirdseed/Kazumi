@@ -3,8 +3,11 @@ import 'package:html/parser.dart';
 import 'package:kazumi/modules/roads/road_module.dart';
 import 'package:kazumi/modules/search/plugin_search_module.dart';
 import 'package:kazumi/plugins/anti_crawler_config.dart';
+import 'package:kazumi/plugins/discover_rule_config.dart';
 import 'package:kazumi/services/plugin/rule_engine_models.dart';
+import 'package:kazumi/services/plugin/rule_template.dart';
 import 'package:kazumi/utils/episode_url.dart';
+import 'package:xpath_selector/xpath_selector.dart';
 import 'package:xpath_selector_html_parser/xpath_selector_html_parser.dart';
 
 enum XPathRuleFormatKind {
@@ -22,6 +25,11 @@ enum XPathRuleField {
   captchaDetectValue,
   captchaImage,
   captchaButton,
+  discoverList,
+  discoverName,
+  discoverLink,
+  discoverCover,
+  discoverNextPage,
 }
 
 class XPathRuleFormatException implements Exception {
@@ -216,6 +224,218 @@ class XPathRuleStrategy {
     );
   }
 
+  PreparedRuleRequest prepareDiscoverRequest(
+    RuleExecutionConfig config,
+    RuleDiscoverQuery query,
+  ) {
+    final discover = config.discoverConfig;
+    final page = discover.pageStart + query.index;
+    final selection = discover.sanitize(query.selection);
+    final variables = <String, Object?>{'page': page};
+    final queryParts = <String>[];
+    void addParam(String name, String value) => queryParts.add(
+        '${Uri.encodeQueryComponent(name)}=${Uri.encodeQueryComponent(value)}');
+
+    for (final group in discover.filters) {
+      final values = selection[group.key] ?? const <String>[];
+      if (group.param.isNotEmpty) {
+        for (final value in values) {
+          if (value.isNotEmpty) addParam(group.param, value);
+        }
+      } else {
+        variables[group.key] = group.multiple
+            ? values.join(group.separator)
+            : (values.firstOrNull ?? '');
+      }
+    }
+    if (discover.pageParam.isNotEmpty) {
+      addParam(discover.pageParam, '$page');
+    }
+
+    var url = renderRuleTemplate(
+      discover.url,
+      variables,
+      encode: Uri.encodeComponent,
+      onMissing: (name) => XPathRuleFormatException(
+        '推荐列表地址缺少变量 @$name',
+        kind: XPathRuleFormatKind.invalidUrl,
+      ),
+    );
+    if (queryParts.isNotEmpty) {
+      final separator = !url.contains('?')
+          ? '?'
+          : (url.endsWith('?') || url.endsWith('&') ? '' : '&');
+      url = '$url$separator${queryParts.join('&')}';
+    }
+    final uri = Uri.tryParse(url);
+    if (uri == null || !uri.hasScheme || uri.host.isEmpty) {
+      throw XPathRuleFormatException(
+        '推荐列表 URL 无效: $url',
+        kind: XPathRuleFormatKind.invalidUrl,
+      );
+    }
+    return PreparedRuleRequest(method: 'GET', url: url, includeCookies: true);
+  }
+
+  /// Tries each layout in order and keeps the first one that yields items, so
+  /// a rule can cover pages whose card markup differs (e.g. per category).
+  RuleDiscoverParseResult parseDiscover(
+    String raw,
+    RuleExecutionConfig config,
+  ) {
+    final root = _documentElement(raw);
+    if (detectsCaptchaChallenge(
+      raw,
+      config.antiCrawlerConfig,
+      htmlElement: root,
+    )) {
+      throw CaptchaRequiredException(config.pluginName);
+    }
+
+    final discover = config.discoverConfig;
+    final linkPattern =
+        discover.linkPattern.isEmpty ? null : RegExp(discover.linkPattern);
+    final diagnostics = <String>[];
+    var items = <RuleDiscoverItem>[];
+    var fragments = <String>[];
+    var aspectRatio = discover.layouts.firstOrNull?.aspectRatio ?? 0.7;
+
+    for (var layoutIndex = 0;
+        layoutIndex < discover.layouts.length;
+        layoutIndex++) {
+      final layout = discover.layouts[layoutIndex];
+      if (layout.list.isEmpty) continue;
+      final nodes = _runSelector(
+        XPathRuleField.discoverList,
+        layout.list,
+        () => root.queryXPath(layout.list).nodes,
+      );
+      final seen = <String>{};
+      final layoutItems = <RuleDiscoverItem>[];
+      final layoutFragments = <String>[];
+      var filtered = 0;
+      for (var index = 0; index < nodes.length; index++) {
+        final node = nodes[index];
+        try {
+          final name = _selectString(
+            XPathRuleField.discoverName,
+            node,
+            layout.name,
+          ).replaceAll(RegExp(r'\s+'), ' ');
+          final link = layout.link.isEmpty
+              ? node.attributes['href']?.trim() ?? ''
+              : _selectString(
+                  XPathRuleField.discoverLink,
+                  node,
+                  layout.link,
+                  attribute: 'href',
+                );
+          if (name.isEmpty || link.isEmpty) {
+            diagnostics.add('推荐布局 $layoutIndex 节点 $index 缺少名称或链接，已跳过');
+            continue;
+          }
+          if (linkPattern != null && !linkPattern.hasMatch(link)) {
+            filtered++;
+            continue;
+          }
+          if (!seen.add(normalizeEpisodeUrl(config.baseUrl, link))) continue;
+          final cover = _selectCover(node, layout);
+          layoutItems.add(RuleDiscoverItem(
+            name: name,
+            src: link,
+            cover:
+                cover.isEmpty ? '' : normalizeEpisodeUrl(config.baseUrl, cover),
+          ));
+          layoutFragments.add(_fragment(node.node));
+        } on XPathRuleFormatException {
+          rethrow;
+        } catch (error) {
+          diagnostics.add('推荐布局 $layoutIndex 节点 $index 解析失败: $error');
+        }
+      }
+      if (filtered > 0) {
+        diagnostics.add('推荐布局 $layoutIndex 过滤了 $filtered 个不匹配链接的条目');
+      }
+      if (layoutItems.isNotEmpty) {
+        items = layoutItems;
+        fragments = layoutFragments;
+        aspectRatio = layout.aspectRatio;
+        break;
+      }
+      diagnostics.add('推荐布局 $layoutIndex 未匹配到条目');
+    }
+
+    bool? hasNextPage;
+    if (discover.nextPage.isNotEmpty) {
+      hasNextPage = _runSelector(
+            XPathRuleField.discoverNextPage,
+            discover.nextPage,
+            () => root.queryXPath(discover.nextPage).node,
+          ) !=
+          null;
+    }
+    return RuleDiscoverParseResult(
+      items: items,
+      hasNextPage: hasNextPage,
+      aspectRatio: aspectRatio,
+      matchedFragments: fragments,
+      diagnostics: diagnostics,
+    );
+  }
+
+  /// Reads `/@attr` expressions as the attribute, other expressions as the
+  /// selected node's [attribute] or, without one, its text.
+  String _selectString(
+    XPathRuleField field,
+    XPathNode<Node> node,
+    String expression, {
+    String? attribute,
+  }) {
+    final result = _runSelector(
+      field,
+      expression,
+      () => node.queryXPath(expression),
+    );
+    if (_attributeSuffix.hasMatch(expression)) {
+      return result.attr?.trim() ?? '';
+    }
+    final selected = result.node;
+    if (selected == null) return '';
+    if (attribute != null) return selected.attributes[attribute]?.trim() ?? '';
+    return selected.text?.trim() ?? '';
+  }
+
+  /// Lazy-loading sites keep the real image in a data attribute and a
+  /// placeholder in `src`, so those are tried first.
+  String _selectCover(XPathNode<Node> node, DiscoverLayout layout) {
+    if (_attributeSuffix.hasMatch(layout.cover)) {
+      return _selectString(XPathRuleField.discoverCover, node, layout.cover);
+    }
+    final image = layout.cover.isEmpty
+        ? node.queryXPath('//img').node
+        : _runSelector(
+            XPathRuleField.discoverCover,
+            layout.cover,
+            () => node.queryXPath(layout.cover).node,
+          );
+    if (image == null) return '';
+    for (final name in _coverAttributes) {
+      final value = image.attributes[name]?.trim() ?? '';
+      if (value.isNotEmpty && !value.startsWith('data:')) return value;
+    }
+    final style = image.attributes['style'] ?? '';
+    return _styleUrl.firstMatch(style)?.group(1)?.trim() ?? '';
+  }
+
+  static final _attributeSuffix = RegExp(r'/@[\w:-]+$');
+  static final _styleUrl = RegExp(r'''url\(\s*['"]?([^'")]+)['"]?\s*\)''');
+  static const _coverAttributes = [
+    'data-original',
+    'data-src',
+    'data-lazy-src',
+    'src',
+  ];
+
   bool detectsCaptchaChallenge(
     String raw,
     AntiCrawlerConfig config, {
@@ -324,6 +544,11 @@ class XPathRuleStrategy {
       XPathRuleField.captchaDetectValue => '验证页检测',
       XPathRuleField.captchaImage => '验证码图片',
       XPathRuleField.captchaButton => '验证按钮',
+      XPathRuleField.discoverList => '推荐列表',
+      XPathRuleField.discoverName => '推荐条目名称',
+      XPathRuleField.discoverLink => '推荐条目链接',
+      XPathRuleField.discoverCover => '推荐条目封面',
+      XPathRuleField.discoverNextPage => '推荐下一页',
     };
   }
 

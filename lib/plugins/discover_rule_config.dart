@@ -1,3 +1,5 @@
+import 'package:kazumi/services/plugin/rule_template.dart';
+
 /// Optional listing ("规则推荐") section of a rule.
 ///
 /// Filter options are declared statically by the rule. Each filter group either
@@ -118,9 +120,7 @@ class RuleDiscoverConfig {
         throw FormatException('单选分组 ${group.key} 只能有一个默认值');
       }
     }
-    for (final match in RegExp(
-      r'(?<![A-Za-z0-9_])@([A-Za-z_][A-Za-z0-9_]*)',
-    ).allMatches(url)) {
+    for (final match in ruleTemplateVariable.allMatches(url)) {
       final name = match.group(1)!;
       if (name != 'page' && !keys.contains(name)) {
         throw FormatException('列表地址包含未声明的变量 @$name');

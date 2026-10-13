@@ -62,7 +62,11 @@ class RuleEngine {
         cancelToken: cancelToken,
       );
     } on SearchErrorException catch (error) {
-      if (_isCaptchaChallengeResponse(error, config)) {
+      if (_isCaptchaChallengeResponse(
+        error.cause,
+        config,
+        parsesHtml: config.searchMode == RuleMode.xpath,
+      )) {
         throw CaptchaRequiredException(config.pluginName);
       }
       rethrow;
@@ -92,6 +96,54 @@ class RuleEngine {
       if (_isCancellation(error)) rethrow;
       _logFailure(config, 'search response parsing', error, stackTrace);
       throw SearchErrorException(config.pluginName, cause: error);
+    }
+  }
+
+  /// Fetches one page of the rule's discover listing. An empty page is not an
+  /// error: it marks the end of the listing.
+  Future<RuleDiscoverTrace> discover(
+    RuleExecutionConfig config,
+    RuleDiscoverQuery query, {
+    CancelToken? cancelToken,
+  }) async {
+    late final PreparedRuleRequest request;
+    try {
+      request = _xpathStrategy.prepareDiscoverRequest(config, query);
+    } catch (error, stackTrace) {
+      _logFailure(config, 'discover request preparation', error, stackTrace);
+      throw DiscoverErrorException(config.pluginName, cause: error);
+    }
+
+    late final String raw;
+    try {
+      raw = await _executeRequest(
+        request,
+        config,
+        phase: 'discover request',
+        wrapError: (error) =>
+            DiscoverErrorException(config.pluginName, cause: error),
+        cancelToken: cancelToken,
+      );
+    } on DiscoverErrorException catch (error) {
+      if (_isCaptchaChallengeResponse(error.cause, config, parsesHtml: true)) {
+        throw CaptchaRequiredException(config.pluginName);
+      }
+      rethrow;
+    }
+    try {
+      final parsed = _xpathStrategy.parseDiscover(raw, config);
+      _logDiagnostics(config, 'discover', parsed.diagnostics);
+      return RuleDiscoverTrace(
+        requestUrl: request.url,
+        rawResponse: raw,
+        result: parsed,
+      );
+    } on CaptchaRequiredException {
+      rethrow;
+    } catch (error, stackTrace) {
+      if (_isCancellation(error)) rethrow;
+      _logFailure(config, 'discover response parsing', error, stackTrace);
+      throw DiscoverErrorException(config.pluginName, cause: error);
     }
   }
 
@@ -239,15 +291,14 @@ class RuleEngine {
   /// captcha detector against the preserved Dio response body and hand the
   /// request over to the existing captcha flow when it matches.
   bool _isCaptchaChallengeResponse(
-    SearchErrorException error,
-    RuleExecutionConfig config,
-  ) {
-    if (config.searchMode != RuleMode.xpath ||
-        !config.antiCrawlerConfig.enabled) {
+    Object? cause,
+    RuleExecutionConfig config, {
+    required bool parsesHtml,
+  }) {
+    if (!parsesHtml || !config.antiCrawlerConfig.enabled) {
       return false;
     }
 
-    final cause = error.cause;
     if (cause is! NetworkException ||
         cause.type != NetworkExceptionType.badResponse) {
       return false;

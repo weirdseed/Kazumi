@@ -49,6 +49,17 @@ class ChapterErrorException implements Exception {
       '${cause != null ? ' ($cause)' : ''}';
 }
 
+class DiscoverErrorException implements Exception {
+  const DiscoverErrorException(this.pluginName, {this.cause});
+
+  final String pluginName;
+  final Object? cause;
+
+  @override
+  String toString() => 'DiscoverErrorException: $pluginName listing failed'
+      '${cause != null ? ' ($cause)' : ''}';
+}
+
 /// Immutable runtime snapshot built from a plugin rule.
 ///
 /// Playback-only headers such as the rule's User-Agent and Referer are
@@ -162,4 +173,57 @@ class RuleChapterTrace {
   final String rawResponse;
   final List<Road> roads;
   final List<String> diagnostics;
+}
+
+/// One page of a rule's discover listing. [index] counts from 0; the rule's
+/// `pageStart` maps it to the site's page number.
+class RuleDiscoverQuery {
+  const RuleDiscoverQuery({this.selection = const {}, this.index = 0});
+
+  final Map<String, List<String>> selection;
+  final int index;
+}
+
+class RuleDiscoverItem {
+  const RuleDiscoverItem({
+    required this.name,
+    required this.src,
+    this.cover = '',
+  });
+
+  final String name;
+
+  /// The raw link, kept as-is so it matches what rule search returns.
+  final String src;
+  final String cover;
+}
+
+class RuleDiscoverParseResult {
+  const RuleDiscoverParseResult({
+    required this.items,
+    this.hasNextPage,
+    this.aspectRatio = 0.7,
+    this.matchedFragments = const <String>[],
+    this.diagnostics = const <String>[],
+  });
+
+  final List<RuleDiscoverItem> items;
+
+  /// Null when the rule declares no next-page selector.
+  final bool? hasNextPage;
+  final double aspectRatio;
+  final List<String> matchedFragments;
+  final List<String> diagnostics;
+}
+
+class RuleDiscoverTrace {
+  const RuleDiscoverTrace({
+    required this.requestUrl,
+    required this.rawResponse,
+    required this.result,
+  });
+
+  final String requestUrl;
+  final String rawResponse;
+  final RuleDiscoverParseResult result;
 }

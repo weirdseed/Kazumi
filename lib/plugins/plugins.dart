@@ -13,7 +13,11 @@ export 'package:kazumi/services/plugin/rule_engine_models.dart'
         CaptchaRequiredException,
         NoResultException,
         SearchErrorException,
-        ChapterErrorException;
+        ChapterErrorException,
+        DiscoverErrorException,
+        RuleDiscoverItem,
+        RuleDiscoverParseResult,
+        RuleDiscoverQuery;
 
 String pluginNameKey(String name) => name.toLowerCase();
 
@@ -241,6 +245,25 @@ class Plugin {
       source,
       cancelToken: cancelToken,
     );
+  }
+
+  Future<RuleDiscoverTrace> traceDiscover(
+    RuleDiscoverQuery query, {
+    RuleCancelToken? cancelToken,
+  }) {
+    return _ruleEngine.discover(
+      _executionConfig,
+      query,
+      cancelToken: cancelToken,
+    );
+  }
+
+  /// One page of the rule's discover listing; see [RuleDiscoverConfig].
+  Future<RuleDiscoverParseResult> queryDiscover(
+    RuleDiscoverQuery query, {
+    RuleCancelToken? cancelToken,
+  }) async {
+    return (await traceDiscover(query, cancelToken: cancelToken)).result;
   }
 
   /// Parses HTML harvested from the captcha webview as a search result;
