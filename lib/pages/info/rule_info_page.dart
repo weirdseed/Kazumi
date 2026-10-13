@@ -8,6 +8,7 @@ import 'package:kazumi/bean/widget/loading_indicator.dart';
 import 'package:kazumi/bean/dialog/dialog_helper.dart';
 import 'package:kazumi/modules/bangumi/bangumi_item.dart';
 import 'package:kazumi/modules/bangumi/rule_source_item.dart';
+import 'package:kazumi/modules/roads/road_module.dart';
 import 'package:kazumi/pages/info/info_actions_menu.dart';
 import 'package:kazumi/pages/info/info_page.dart';
 import 'package:kazumi/pages/video/video_playback_args.dart';
@@ -157,6 +158,7 @@ class _RuleInfoPageState extends State<RuleInfoPage>
       KazumiDialog.showToast(message: _failed ? '未能获取播放列表，请重试' : '正在获取播放列表');
       return;
     }
+    final start = _episodeOf(roads);
     context.pushNamed(
       '/video/',
       arguments: OnlineVideoPlaybackArgs(
@@ -165,8 +167,26 @@ class _RuleInfoPageState extends State<RuleInfoPage>
         title: widget.args.name,
         src: widget.args.src,
         roads: roads,
+        startRoad: start?.road,
+        startEpisode: start?.episode,
       ),
     );
+  }
+
+  /// Where this item itself sits in its episode list. Sites like hanime1
+  /// list a whole playlist, newest first, so episode 1 is often another
+  /// video; playback starts here when nothing has been watched yet.
+  ({int road, int episode})? _episodeOf(List<Road> roads) {
+    final target = normalizeEpisodeUrl(_plugin.baseUrl, widget.args.src);
+    for (var road = 0; road < roads.length; road++) {
+      final pages = roads[road].data;
+      for (var index = 0; index < pages.length; index++) {
+        if (normalizeEpisodeUrl(_plugin.baseUrl, pages[index]) == target) {
+          return (road: road, episode: index + 1);
+        }
+      }
+    }
+    return null;
   }
 
   Uri? get _externalUrl {

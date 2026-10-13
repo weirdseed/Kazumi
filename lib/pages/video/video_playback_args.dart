@@ -28,7 +28,7 @@ class OnlineVideoPlaybackArgs extends VideoPlaybackArgs {
   final String src;
   final List<Road> roads;
 
-  /// Episode to start with (1-based) instead of resuming from history.
+  /// Episode to start with (1-based) when this item has no watch history.
   final int? startRoad;
   final int? startEpisode;
 }

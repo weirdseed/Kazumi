@@ -167,34 +167,26 @@ class _VideoPageState extends State<VideoPage>
         videoPageController.bangumiItem,
         videoPageController.currentPlugin.name);
     final requested = videoPageController.requestedStart;
-    if (requested != null &&
-        requested.road < videoPageController.roadList.length &&
-        requested.episode <=
-            videoPageController.roadList[requested.road].data.length) {
+    final roads = videoPageController.roadList;
+    if (progress != null &&
+        roads.length > progress.road &&
+        roads[progress.road].data.length >= progress.episode) {
+      videoPageController.resetEpisodeState(
+        episode: progress.episode,
+        road: progress.road,
+      );
+      if (playResume) {
+        videoPageController.historyOffset = progress.progress.inSeconds;
+      }
+    } else if (requested != null &&
+        requested.road < roads.length &&
+        requested.episode <= roads[requested.road].data.length) {
+      // Nothing watched yet: start where the route points, e.g. the video a
+      // rule result was opened from inside its playlist.
       videoPageController.resetEpisodeState(
         episode: requested.episode,
         road: requested.road,
       );
-      // Only continue mid-episode when the chosen one is the last watched.
-      if (playResume &&
-          progress != null &&
-          progress.road == requested.road &&
-          progress.episode == requested.episode) {
-        videoPageController.historyOffset = progress.progress.inSeconds;
-      }
-    } else if (progress != null) {
-      if (videoPageController.roadList.length > progress.road) {
-        if (videoPageController.roadList[progress.road].data.length >=
-            progress.episode) {
-          videoPageController.resetEpisodeState(
-            episode: progress.episode,
-            road: progress.road,
-          );
-          if (playResume) {
-            videoPageController.historyOffset = progress.progress.inSeconds;
-          }
-        }
-      }
     }
     _revealCurrentEpisode();
 

@@ -134,7 +134,7 @@ abstract class _VideoPageController with Store implements Disposable {
 
   String src = '';
 
-  /// Episode the route asked to start with, overriding resume from history.
+  /// Episode the route asked to start with when there is no history.
   ({int road, int episode})? requestedStart;
 
   @observable
