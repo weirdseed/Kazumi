@@ -149,6 +149,30 @@ class RuleEngine {
     }
   }
 
+  /// Fetches the episode list and, from the same page, the rule's detail
+  /// fields. Details are best-effort: a broken selector leaves them empty
+  /// instead of blocking playback.
+  Future<RuleDetailTrace> queryDetail(
+    RuleExecutionConfig config,
+    String source, {
+    CancelToken? cancelToken,
+  }) async {
+    final chapters = await queryChapters(
+      config,
+      source,
+      cancelToken: cancelToken,
+    );
+    var detail = RuleDetail.empty;
+    if (config.detailConfig.hasContent && config.chapterMode == RuleMode.xpath) {
+      try {
+        detail = _xpathStrategy.parseDetail(chapters.rawResponse, config);
+      } catch (error, stackTrace) {
+        _logFailure(config, 'detail parsing', error, stackTrace);
+      }
+    }
+    return RuleDetailTrace(roads: chapters.roads, detail: detail);
+  }
+
   /// Fetches the site's comments for one episode. The episode page is read
   /// first only when the rule needs variables from it and the caller has none
   /// cached from an earlier page.

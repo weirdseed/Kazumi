@@ -10,6 +10,7 @@ import 'package:kazumi/pages/plugin_editor/editor_form_widgets.dart';
 import 'package:kazumi/plugins/anti_crawler_config.dart';
 import 'package:kazumi/plugins/api_rule_config.dart';
 import 'package:kazumi/plugins/comment_rule_config.dart';
+import 'package:kazumi/plugins/detail_rule_config.dart';
 import 'package:kazumi/plugins/discover_rule_config.dart';
 import 'package:kazumi/plugins/plugins.dart';
 import 'package:kazumi/plugins/plugins_controller.dart';
@@ -144,6 +145,10 @@ abstract final class _RuleEditorText {
   static const groupComments = '站点评论';
   static const commentConfig = '评论配置（JSON）';
   static const commentConfigHelper = '在播放页显示本站评论，留空表示不启用。';
+  static const groupDetail = '规则详情页';
+  static const detailConfig = '详情配置（JSON）';
+  static const detailConfigHelper =
+      '从选集页读取封面、简介、标签和信息（cover、summary、tags、info），留空表示不启用。';
 }
 
 class PluginEditorPage extends StatefulWidget {
@@ -249,6 +254,7 @@ class _PluginEditorPageState extends State<PluginEditorPage> {
       TextEditingController();
   final TextEditingController commentConfigController =
       TextEditingController();
+  final TextEditingController detailConfigController = TextEditingController();
   bool antiCrawlerEnabled = false;
   int captchaType = CaptchaType.imageCaptcha;
   int captchaDetectType = CaptchaDetectType.xpath;
@@ -368,6 +374,9 @@ class _PluginEditorPageState extends State<PluginEditorPage> {
     commentConfigController.text = plugin.commentConfig.hasContent
         ? _prettyJson(plugin.commentConfig.toJson())
         : '';
+    detailConfigController.text = plugin.detailConfig.hasContent
+        ? _prettyJson(plugin.detailConfig.toJson())
+        : '';
   }
 
   @override
@@ -415,6 +424,7 @@ class _PluginEditorPageState extends State<PluginEditorPage> {
     captchaScriptController.dispose();
     discoverConfigController.dispose();
     commentConfigController.dispose();
+    detailConfigController.dispose();
     super.dispose();
   }
 
@@ -688,6 +698,13 @@ class _PluginEditorPageState extends State<PluginEditorPage> {
             label: _RuleEditorText.commentConfig,
             helper: _RuleEditorText.commentConfigHelper,
             maxLines: 8,
+          ),
+          const EditorSubheader(label: _RuleEditorText.groupDetail),
+          EditorTextField(
+            controller: detailConfigController,
+            label: _RuleEditorText.detailConfig,
+            helper: _RuleEditorText.detailConfigHelper,
+            maxLines: 6,
           ),
         ],
       ),
@@ -1050,6 +1067,8 @@ class _PluginEditorPageState extends State<PluginEditorPage> {
           RuleDiscoverConfig.parseEditorText(discoverConfigController.text),
       commentConfig:
           RuleCommentConfig.parseEditorText(commentConfigController.text),
+      detailConfig:
+          RuleDetailConfig.parseEditorText(detailConfigController.text),
     );
   }
 

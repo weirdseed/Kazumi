@@ -37,6 +37,10 @@ enum XPathRuleField {
   commentAvatar,
   commentContent,
   commentTime,
+  detailCover,
+  detailSummary,
+  detailTags,
+  detailInfo,
 }
 
 class XPathRuleFormatException implements Exception {
@@ -528,6 +532,41 @@ class XPathRuleStrategy {
     return comments;
   }
 
+  /// Reads the rule's optional detail fields from the episode list page.
+  RuleDetail parseDetail(String raw, RuleExecutionConfig config) {
+    final detail = config.detailConfig;
+    final root = HtmlNodeTree(_documentElement(raw));
+    List<String> lines(XPathRuleField field, String expression) {
+      if (expression.isEmpty) return const [];
+      final nodes = _runSelector(
+        field,
+        expression,
+        () => root.queryXPath(expression).nodes,
+      );
+      return nodes
+          .map((node) => (node.text ?? '').replaceAll(RegExp(r'\s+'), ' ').trim())
+          .where((text) => text.isNotEmpty)
+          .toSet()
+          .toList();
+    }
+
+    final cover = detail.cover.isEmpty
+        ? ''
+        : _selectCover(root, DiscoverLayout(cover: detail.cover));
+    return RuleDetail(
+      cover: cover.isEmpty ? '' : normalizeEpisodeUrl(config.baseUrl, cover),
+      summary: detail.summary.isEmpty
+          ? ''
+          : _selectString(
+              XPathRuleField.detailSummary,
+              root,
+              detail.summary,
+            ).replaceAll(RegExp(r'\s+'), ' ').trim(),
+      tags: lines(XPathRuleField.detailTags, detail.tags),
+      info: lines(XPathRuleField.detailInfo, detail.info),
+    );
+  }
+
   bool detectsCaptchaChallenge(
     String raw,
     AntiCrawlerConfig config, {
@@ -647,6 +686,10 @@ class XPathRuleStrategy {
       XPathRuleField.commentAvatar => '评论头像',
       XPathRuleField.commentContent => '评论内容',
       XPathRuleField.commentTime => '评论时间',
+      XPathRuleField.detailCover => '详情封面',
+      XPathRuleField.detailSummary => '详情简介',
+      XPathRuleField.detailTags => '详情标签',
+      XPathRuleField.detailInfo => '详情信息',
     };
   }
 

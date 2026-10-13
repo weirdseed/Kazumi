@@ -4,6 +4,7 @@ import 'package:kazumi/modules/search/plugin_search_module.dart';
 import 'package:kazumi/plugins/anti_crawler_config.dart';
 import 'package:kazumi/plugins/api_rule_config.dart';
 import 'package:kazumi/plugins/comment_rule_config.dart';
+import 'package:kazumi/plugins/detail_rule_config.dart';
 import 'package:kazumi/plugins/discover_rule_config.dart';
 
 typedef RuleCancelToken = CancelToken;
@@ -95,6 +96,7 @@ class RuleExecutionConfig {
     this.userAgent = '',
     this.discoverConfig = RuleDiscoverConfig.empty,
     RuleCommentConfig? commentConfig,
+    this.detailConfig = RuleDetailConfig.empty,
   }) : commentConfig = commentConfig ?? RuleCommentConfig.empty;
 
   final String pluginName;
@@ -116,6 +118,7 @@ class RuleExecutionConfig {
   final String userAgent;
   final RuleDiscoverConfig discoverConfig;
   final RuleCommentConfig commentConfig;
+  final RuleDetailConfig detailConfig;
 }
 
 class PreparedRuleRequest {
@@ -284,4 +287,27 @@ class RuleCommentTrace {
   final List<RuleComment> comments;
   final Map<String, String> variables;
   final String rawResponse;
+}
+
+class RuleDetail {
+  const RuleDetail({
+    this.cover = '',
+    this.summary = '',
+    this.tags = const [],
+    this.info = const [],
+  });
+
+  static const empty = RuleDetail();
+
+  final String cover;
+  final String summary;
+  final List<String> tags;
+  final List<String> info;
+}
+
+class RuleDetailTrace {
+  const RuleDetailTrace({required this.roads, required this.detail});
+
+  final List<Road> roads;
+  final RuleDetail detail;
 }

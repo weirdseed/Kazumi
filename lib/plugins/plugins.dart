@@ -3,6 +3,7 @@ import 'package:kazumi/modules/search/plugin_search_module.dart';
 import 'package:kazumi/plugins/anti_crawler_config.dart';
 import 'package:kazumi/plugins/api_rule_config.dart';
 import 'package:kazumi/plugins/comment_rule_config.dart';
+import 'package:kazumi/plugins/detail_rule_config.dart';
 import 'package:kazumi/plugins/discover_rule_config.dart';
 import 'package:kazumi/request/config/api_endpoints.dart';
 import 'package:kazumi/services/plugin/api_rule_engine.dart';
@@ -20,6 +21,8 @@ export 'package:kazumi/services/plugin/rule_engine_models.dart'
         RuleComment,
         RuleCommentQuery,
         RuleCommentTrace,
+        RuleDetail,
+        RuleDetailTrace,
         RuleDiscoverItem,
         RuleDiscoverParseResult,
         RuleDiscoverQuery;
@@ -59,6 +62,7 @@ class Plugin {
   AntiCrawlerConfig antiCrawlerConfig;
   RuleDiscoverConfig discoverConfig;
   RuleCommentConfig commentConfig;
+  RuleDetailConfig detailConfig;
 
   Plugin({
     required this.api,
@@ -87,6 +91,7 @@ class Plugin {
     AntiCrawlerConfig? antiCrawlerConfig,
     this.discoverConfig = RuleDiscoverConfig.empty,
     RuleCommentConfig? commentConfig,
+    this.detailConfig = RuleDetailConfig.empty,
   })  : commentConfig = commentConfig ?? RuleCommentConfig.empty,
         searchApiConfig = searchApiConfig ?? ApiSearchConfig(),
         chapterApiConfig = chapterApiConfig ?? ApiChapterConfig(),
@@ -140,6 +145,11 @@ class Plugin {
               Map<String, dynamic>.from(json['commentConfig']),
             )
           : RuleCommentConfig.empty,
+      detailConfig: json['detailConfig'] is Map
+          ? RuleDetailConfig.fromJson(
+              Map<String, dynamic>.from(json['detailConfig']),
+            )
+          : RuleDetailConfig.empty,
     );
   }
 
@@ -205,6 +215,7 @@ class Plugin {
       'antiCrawlerConfig': antiCrawlerConfig.toJson(),
       if (discoverConfig.hasContent) 'discoverConfig': discoverConfig.toJson(),
       if (commentConfig.hasContent) 'commentConfig': commentConfig.toJson(),
+      if (detailConfig.hasContent) 'detailConfig': detailConfig.toJson(),
     };
   }
 
@@ -217,6 +228,7 @@ class Plugin {
   void inheritLocalExtensions(Plugin local) {
     if (!discoverConfig.hasContent) discoverConfig = local.discoverConfig;
     if (!commentConfig.hasContent) commentConfig = local.commentConfig;
+    if (!detailConfig.hasContent) detailConfig = local.detailConfig;
   }
 
   bool get usesApiSearch => searchMode == RuleMode.api;
@@ -241,6 +253,7 @@ class Plugin {
         userAgent: userAgent,
         discoverConfig: discoverConfig,
         commentConfig: commentConfig,
+        detailConfig: detailConfig,
       );
 
   Future<RuleSearchTrace> traceSearch(
@@ -272,6 +285,19 @@ class Plugin {
     return _ruleEngine.discover(
       _executionConfig,
       query,
+      cancelToken: cancelToken,
+    );
+  }
+
+  /// The episode list plus the details [detailConfig] reads from the same
+  /// page, for the rule info page.
+  Future<RuleDetailTrace> queryDetail(
+    String source, {
+    RuleCancelToken? cancelToken,
+  }) {
+    return _ruleEngine.queryDetail(
+      _executionConfig,
+      source,
       cancelToken: cancelToken,
     );
   }
