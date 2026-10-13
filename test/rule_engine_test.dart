@@ -310,6 +310,56 @@ void main() {
       throwsA(same(cancellation)),
     );
   });
+
+  test('sends the rule User-Agent on search and chapter requests', () async {
+    final executor = _FakeExecutor([xpathResponse, xpathResponse]);
+    final engine = RuleEngine(requestExecutor: executor, logFailures: false);
+    final config = _config(
+      searchMode: RuleMode.xpath,
+      chapterMode: RuleMode.xpath,
+      userAgent: 'RuleAgent/1.0',
+    );
+
+    final search = await engine.search(config, 'keyword');
+    await engine.queryChapters(config, search.response.data.first.src);
+
+    expect(
+      executor.requests.map((request) => request.headers['user-agent']),
+      ['RuleAgent/1.0', 'RuleAgent/1.0'],
+    );
+  });
+
+  test('leaves headers untouched when the rule has no User-Agent', () async {
+    final executor = _FakeExecutor([xpathResponse]);
+    final engine = RuleEngine(requestExecutor: executor, logFailures: false);
+
+    await engine.search(
+      _config(searchMode: RuleMode.xpath, chapterMode: RuleMode.xpath),
+      'keyword',
+    );
+
+    expect(executor.requests.single.headers, isEmpty);
+  });
+
+  test('keeps a User-Agent declared by the API request template', () async {
+    final executor = _FakeExecutor([apiChapterFixture]);
+    final engine = RuleEngine(requestExecutor: executor, logFailures: false);
+
+    await engine.queryChapters(
+      _config(
+        searchMode: RuleMode.api,
+        chapterMode: RuleMode.api,
+        userAgent: 'RuleAgent/1.0',
+        chapterApiHeaders: {'User-Agent': 'TemplateAgent/2.0'},
+      ),
+      'api-id',
+    );
+
+    expect(
+      executor.requests.single.headers,
+      {'User-Agent': 'TemplateAgent/2.0'},
+    );
+  });
 }
 
 NetworkException _badResponse(
@@ -363,6 +413,8 @@ RuleExecutionConfig _config({
   AntiCrawlerConfig? antiCrawler,
   String searchName = '//h2/a',
   String chapterResult = '//a',
+  String userAgent = '',
+  Map<String, dynamic> chapterApiHeaders = const {},
 }) {
   return RuleExecutionConfig(
     pluginName: 'runtime-test',
@@ -388,6 +440,7 @@ RuleExecutionConfig _config({
     chapterApiConfig: ApiChapterConfig(
       request: ApiRequestConfig(
         url: 'https://example.com/api/videos/@source',
+        headers: chapterApiHeaders,
       ),
       roadsPath: r'$.data.roads[*]',
       roadNamePath: r'$.name',
@@ -396,6 +449,7 @@ RuleExecutionConfig _config({
       episodeUrlPath: r'$.url',
     ),
     antiCrawlerConfig: antiCrawler ?? AntiCrawlerConfig.empty(),
+    userAgent: userAgent,
   );
 }
 

@@ -200,6 +200,7 @@ class Plugin {
         searchApiConfig: searchApiConfig,
         chapterApiConfig: chapterApiConfig,
         antiCrawlerConfig: antiCrawlerConfig,
+        userAgent: userAgent,
       );
 
   Future<RuleSearchTrace> traceSearch(

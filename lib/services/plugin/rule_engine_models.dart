@@ -68,6 +68,7 @@ class RuleExecutionConfig {
     required this.searchApiConfig,
     required this.chapterApiConfig,
     required this.antiCrawlerConfig,
+    this.userAgent = '',
   });
 
   final String pluginName;
@@ -84,6 +85,9 @@ class RuleExecutionConfig {
   final ApiSearchConfig searchApiConfig;
   final ApiChapterConfig chapterApiConfig;
   final AntiCrawlerConfig antiCrawlerConfig;
+
+  /// User-Agent the rule asks for. Empty keeps the client's random UA.
+  final String userAgent;
 }
 
 class PreparedRuleRequest {

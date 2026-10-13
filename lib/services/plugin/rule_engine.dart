@@ -189,7 +189,7 @@ class RuleEngine {
   }) async {
     try {
       return await _requestExecutor.execute(
-        request,
+        _withRuleUserAgent(request, config),
         config,
         cancelToken: cancelToken,
       );
@@ -203,6 +203,31 @@ class RuleEngine {
   bool _isCancellation(Object error) {
     return error is NetworkException &&
         error.type == NetworkExceptionType.cancel;
+  }
+
+  /// Applies the rule's User-Agent unless the API request template already
+  /// declares one. The executor's captcha-verified UA still overrides it.
+  PreparedRuleRequest _withRuleUserAgent(
+    PreparedRuleRequest request,
+    RuleExecutionConfig config,
+  ) {
+    final userAgent = config.userAgent.trim();
+    if (userAgent.isEmpty ||
+        request.headers.keys.any((key) => key.toLowerCase() == 'user-agent')) {
+      return request;
+    }
+    return PreparedRuleRequest(
+      method: request.method,
+      url: request.url,
+      headers: <String, dynamic>{
+        'user-agent': userAgent,
+        ...request.headers,
+      },
+      query: request.query,
+      bodyType: request.bodyType,
+      body: request.body,
+      includeCookies: request.includeCookies,
+    );
   }
 
   /// Checks whether a failed XPath search request actually returned an
