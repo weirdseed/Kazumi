@@ -95,6 +95,10 @@ class _RuleInfoPageState extends State<RuleInfoPage>
   RuleDetailTrace? _trace;
   bool _failed = false;
   bool _fullIntro = false;
+  bool _fullTag = false;
+
+  /// Like the Bangumi page, long tag lists show 12 and a 更多 + chip.
+  static const int _foldedTagCount = 12;
 
   Plugin get _plugin => widget.args.plugin;
   RuleDetail get _detail => _trace?.detail ?? RuleDetail.empty;
@@ -343,12 +347,25 @@ class _RuleInfoPageState extends State<RuleInfoPage>
                     runSpacing: isDesktop() ? 8 : 0,
                     children: [
                       // Like Bangumi tags, a tag searches; here in the rules.
-                      for (final tag in detail.tags)
+                      for (final tag
+                          in _fullTag || detail.tags.length <= _foldedTagCount
+                              ? detail.tags
+                              : detail.tags.take(_foldedTagCount))
                         ActionChip(
                           label: Text(tag),
                           onPressed: () => context.pushNamed(
                             '/search/rule/${Uri.encodeComponent(tag)}',
                           ),
+                        ),
+                      if (!_fullTag && detail.tags.length > _foldedTagCount)
+                        ActionChip(
+                          label: Text(
+                            '更多 +',
+                            style: TextStyle(
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
+                          ),
+                          onPressed: () => setState(() => _fullTag = true),
                         ),
                     ],
                   ),
