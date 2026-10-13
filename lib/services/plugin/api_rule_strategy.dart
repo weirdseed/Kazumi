@@ -110,6 +110,104 @@ class ApiRuleStrategy {
     }
   }
 
+  /// Parses a JSON discover listing. Layout fields are JSONPaths; the cover
+  /// may instead be a template such as `https://x/{$.file.id}/{$.n:02}.jpg`,
+  /// where `:0N` zero-pads a value to N digits.
+  RuleDiscoverParseResult parseDiscover(String raw, RuleExecutionConfig config) {
+    final discover = config.discoverConfig;
+    final document = decodeResponse(raw);
+    final linkPattern =
+        discover.linkPattern.isEmpty ? null : RegExp(discover.linkPattern);
+    final diagnostics = <String>[];
+    for (var layoutIndex = 0;
+        layoutIndex < discover.layouts.length;
+        layoutIndex++) {
+      final layout = discover.layouts[layoutIndex];
+      final nodes = RestrictedJsonPath.read(document, layout.list);
+      final seen = <String>{};
+      final items = <RuleDiscoverItem>[];
+      for (var index = 0; index < nodes.length; index++) {
+        final node = nodes[index];
+        if (isExcluded(node, discover.exclude)) continue;
+        final name = _stringValue(RestrictedJsonPath.readFirst(node, layout.name));
+        final link = _stringValue(RestrictedJsonPath.readFirst(node, layout.link));
+        if (name.isEmpty || link.isEmpty) {
+          diagnostics.add('推荐布局 $layoutIndex 节点 $index 缺少名称或链接，已跳过');
+          continue;
+        }
+        if (linkPattern != null && !linkPattern.hasMatch(link)) continue;
+        if (!seen.add(link)) continue;
+        final cover = _renderCover(node, layout.cover);
+        items.add(RuleDiscoverItem(
+          name: name.replaceAll(RegExp(r'\s+'), ' '),
+          src: link,
+          cover: cover.isEmpty ? '' : normalizeEpisodeUrl(config.baseUrl, cover),
+        ));
+      }
+      if (items.isNotEmpty) {
+        return RuleDiscoverParseResult(
+          items: items,
+          aspectRatio: layout.aspectRatio,
+          diagnostics: diagnostics,
+        );
+      }
+      diagnostics.add('推荐布局 $layoutIndex 未匹配到条目');
+    }
+    return RuleDiscoverParseResult(items: const [], diagnostics: diagnostics);
+  }
+
+  bool isExcluded(Object? node, List<ApiItemFilter> exclude) =>
+      exclude.any((filter) =>
+          RestrictedJsonPath.readFirst(node, filter.path) == filter.value);
+
+  String _renderCover(Object? node, String cover) {
+    if (cover.isEmpty) return '';
+    if (cover.startsWith(r'$')) {
+      return _stringValue(RestrictedJsonPath.readFirst(node, cover));
+    }
+    var missing = false;
+    final rendered = cover.replaceAllMapped(_coverPlaceholder, (match) {
+      final value = _stringValue(RestrictedJsonPath.readFirst(node, match[1]!));
+      if (value.isEmpty) missing = true;
+      final width = int.tryParse(match[2] ?? '');
+      return width == null ? value : value.padLeft(width, '0');
+    });
+    return missing ? '' : rendered;
+  }
+
+  static final _coverPlaceholder = RegExp(r'\{(\$[^}:]*)(?::0(\d+))?\}');
+
+  /// Reads the rule's detail fields, as JSONPaths, from a JSON episode
+  /// response. Like the HTML variant each field fails on its own.
+  RuleDetail parseDetail(String raw, RuleExecutionConfig config) {
+    final detail = config.detailConfig;
+    final document = decodeResponse(raw);
+    final diagnostics = <String>[];
+    List<String> values(String path) {
+      if (path.isEmpty) return const [];
+      try {
+        return RestrictedJsonPath.read(document, path)
+            .map(_stringValue)
+            .map((text) => text.replaceAll(RegExp(r'\s+'), ' ').trim())
+            .where((text) => text.isNotEmpty)
+            .toSet()
+            .toList();
+      } on ApiRuleFormatException catch (error) {
+        diagnostics.add(error.message);
+        return const [];
+      }
+    }
+
+    final cover = values(detail.cover).firstOrNull ?? '';
+    return RuleDetail(
+      cover: cover.isEmpty ? '' : normalizeEpisodeUrl(config.baseUrl, cover),
+      summary: values(detail.summary).join(' '),
+      tags: values(detail.tags),
+      info: values(detail.info),
+      diagnostics: diagnostics,
+    );
+  }
+
   /// Reads the HTML string a JSON response carries at [path].
   String decodeHtmlField(String raw, String path) {
     final value = RestrictedJsonPath.readFirst(decodeResponse(raw), path);
@@ -164,6 +262,7 @@ class ApiRuleStrategy {
     final diagnostics = <String>[];
     for (var index = 0; index < nodes.length; index++) {
       final node = nodes[index];
+      if (isExcluded(node, config.exclude)) continue;
       try {
         final name = _stringValue(
           RestrictedJsonPath.readFirst(node, config.namePath),

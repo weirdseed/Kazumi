@@ -1,3 +1,4 @@
+import 'package:kazumi/plugins/api_rule_config.dart';
 import 'dart:convert';
 
 import 'package:kazumi/services/plugin/rule_template.dart';
@@ -17,6 +18,8 @@ class RuleDiscoverConfig {
     this.layouts = const [],
     this.linkPattern = '',
     this.nextPage = '',
+    this.format = DiscoverFormat.html,
+    this.exclude = const [],
   });
 
   static const empty = RuleDiscoverConfig();
@@ -53,6 +56,15 @@ class RuleDiscoverConfig {
   /// XPath of the next-page link. Empty means "stop when a page adds nothing".
   final String nextPage;
 
+  /// [DiscoverFormat.json] reads the listing from a JSON API: layout fields
+  /// are JSONPaths and the cover may be a `{$.path}` template.
+  final String format;
+
+  bool get isJson => format == DiscoverFormat.json;
+
+  /// JSON listings only: items to skip, see [ApiItemFilter].
+  final List<ApiItemFilter> exclude;
+
   factory RuleDiscoverConfig.fromJson(Map<String, dynamic> json) {
     return RuleDiscoverConfig(
       url: _string(json['url']),
@@ -73,6 +85,10 @@ class RuleDiscoverConfig {
           .toList(),
       linkPattern: _string(json['linkPattern']),
       nextPage: _string(json['nextPage']),
+      format: json['format'] == DiscoverFormat.json
+          ? DiscoverFormat.json
+          : DiscoverFormat.html,
+      exclude: ApiItemFilter.listFromJson(json['exclude']),
     );
   }
 
@@ -85,6 +101,9 @@ class RuleDiscoverConfig {
     'layouts': layouts.map((layout) => layout.toJson()).toList(),
     if (linkPattern.isNotEmpty) 'linkPattern': linkPattern,
     if (nextPage.isNotEmpty) 'nextPage': nextPage,
+    if (isJson) 'format': format,
+    if (exclude.isNotEmpty)
+      'exclude': exclude.map((filter) => filter.toJson()).toList(),
   };
 
   /// Whether anything was written; such a config is persisted even when it
@@ -150,6 +169,13 @@ class RuleDiscoverConfig {
     for (final layout in layouts) {
       if (layout.list.isEmpty || layout.name.isEmpty) {
         throw const FormatException('列表布局需要填写 list 和 name');
+      }
+      if (isJson &&
+          (!layout.list.startsWith(r'$') ||
+              !layout.name.startsWith(r'$') ||
+              !layout.link.startsWith(r'$'))) {
+        throw const FormatException(
+            'json 格式的 list、name、link 需要以 \$ 开头的 JSONPath');
       }
     }
     if (linkPattern.isNotEmpty) {
@@ -342,3 +368,8 @@ List<Object?> _list(Object? value) => value is List ? value : const [];
 List<DiscoverOption> _options(Object? value) => _list(
   value,
 ).map(DiscoverOption.fromJson).whereType<DiscoverOption>().toList();
+
+abstract final class DiscoverFormat {
+  static const html = 'html';
+  static const json = 'json';
+}

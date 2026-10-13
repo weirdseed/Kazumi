@@ -61,8 +61,10 @@ class RuleDetailConfig {
       final expression = entry.value;
       if (expression is String &&
           expression.isNotEmpty &&
-          !expression.startsWith('/')) {
-        throw FormatException('详情配置 ${entry.key} 必须是以 / 开头的 XPath');
+          !expression.startsWith('/') &&
+          !expression.startsWith(r'$')) {
+        throw FormatException(
+            '详情配置 ${entry.key} 必须是以 / 开头的 XPath 或以 \$ 开头的 JSONPath');
       }
     }
     return RuleDetailConfig.fromJson(Map<String, dynamic>.from(value));

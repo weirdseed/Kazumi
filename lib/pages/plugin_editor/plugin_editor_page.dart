@@ -1092,6 +1092,8 @@ class _PluginEditorPageState extends State<PluginEditorPage> {
       listPath: valueOf(searchApiListPathController),
       namePath: valueOf(searchApiNamePathController),
       sourcePath: valueOf(searchApiSourcePathController),
+      // No field for it yet; keep what the rule declares.
+      exclude: widget.plugin.searchApiConfig.exclude,
     );
     if (!shouldValidate) return config;
     if (config.request.url.isEmpty) {

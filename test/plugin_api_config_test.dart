@@ -22,6 +22,29 @@ void main() {
     expect(restored.searchMode, RuleMode.xpath);
   });
 
+  test('search exclude filters survive a round trip', () {
+    final plugin = Plugin.fromJson({
+      ..._legacyRule,
+      'searchMode': 'api',
+      'searchApiConfig': {
+        'request': {'url': 'https://api.example.com/search'},
+        'listPath': r'$.results[*]',
+        'namePath': r'$.title',
+        'sourcePath': r'$.id',
+        'exclude': [
+          {'path': r'$.private', 'value': true},
+          {'path': r'$.file', 'value': null},
+        ],
+      },
+    });
+    final restored = Plugin.fromJson(plugin.toJson());
+
+    expect(restored.searchApiConfig.exclude.map((f) => (f.path, f.value)), [
+      (r'$.private', true),
+      (r'$.file', null),
+    ]);
+  });
+
   test('detects rules that require a newer client API level', () {
     final compatible = Plugin.fromJson({
       ..._legacyRule,

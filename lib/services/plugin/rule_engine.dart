@@ -127,13 +127,19 @@ class RuleEngine {
         cancelToken: cancelToken,
       );
     } on DiscoverErrorException catch (error) {
-      if (_isCaptchaChallengeResponse(error.cause, config, parsesHtml: true)) {
+      if (_isCaptchaChallengeResponse(
+        error.cause,
+        config,
+        parsesHtml: !config.discoverConfig.isJson,
+      )) {
         throw CaptchaRequiredException(config.pluginName);
       }
       rethrow;
     }
     try {
-      final parsed = _xpathStrategy.parseDiscover(raw, config);
+      final parsed = config.discoverConfig.isJson
+          ? _apiStrategy.parseDiscover(raw, config)
+          : _xpathStrategy.parseDiscover(raw, config);
       _logDiagnostics(config, 'discover', parsed.diagnostics);
       return RuleDiscoverTrace(
         requestUrl: request.url,
@@ -163,9 +169,11 @@ class RuleEngine {
       cancelToken: cancelToken,
     );
     var detail = RuleDetail.empty;
-    if (config.detailConfig.hasContent && config.chapterMode == RuleMode.xpath) {
+    if (config.detailConfig.hasContent) {
       try {
-        detail = _xpathStrategy.parseDetail(chapters.rawResponse, config);
+        detail = config.chapterMode == RuleMode.api
+            ? _apiStrategy.parseDetail(chapters.rawResponse, config)
+            : _xpathStrategy.parseDetail(chapters.rawResponse, config);
         _logDiagnostics(config, 'detail', detail.diagnostics);
       } catch (error, stackTrace) {
         _logFailure(config, 'detail parsing', error, stackTrace);

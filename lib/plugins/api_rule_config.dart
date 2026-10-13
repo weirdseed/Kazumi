@@ -69,17 +69,40 @@ class ApiRequestConfig {
       };
 }
 
+/// Skips a JSON list item whose [path] reads [value] (a missing value reads
+/// as null), e.g. private or externally hosted entries that cannot play.
+class ApiItemFilter {
+  const ApiItemFilter({required this.path, this.value});
+
+  final String path;
+  final Object? value;
+
+  static List<ApiItemFilter> listFromJson(Object? json) => [
+        if (json is List)
+          for (final item in json)
+            if (item is Map && item['path'] is String)
+              ApiItemFilter(
+                path: (item['path'] as String).trim(),
+                value: item['value'],
+              ),
+      ];
+
+  Map<String, dynamic> toJson() => {'path': path, 'value': value};
+}
+
 class ApiSearchConfig {
   ApiRequestConfig request;
   String listPath;
   String namePath;
   String sourcePath;
+  List<ApiItemFilter> exclude;
 
   ApiSearchConfig({
     ApiRequestConfig? request,
     this.listPath = r'$.data[*]',
     this.namePath = r'$.name',
     this.sourcePath = r'$.url',
+    this.exclude = const [],
   }) : request = request ?? ApiRequestConfig();
 
   factory ApiSearchConfig.fromJson(Map<String, dynamic> json) {
@@ -88,6 +111,7 @@ class ApiSearchConfig {
       listPath: json['listPath'] as String? ?? r'$.data[*]',
       namePath: json['namePath'] as String? ?? r'$.name',
       sourcePath: json['sourcePath'] as String? ?? r'$.url',
+      exclude: ApiItemFilter.listFromJson(json['exclude']),
     );
   }
 
@@ -96,6 +120,8 @@ class ApiSearchConfig {
         'listPath': listPath,
         'namePath': namePath,
         'sourcePath': sourcePath,
+        if (exclude.isNotEmpty)
+          'exclude': exclude.map((filter) => filter.toJson()).toList(),
       };
 }
 

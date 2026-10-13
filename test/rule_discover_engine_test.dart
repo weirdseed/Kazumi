@@ -262,6 +262,74 @@ void main() {
     });
   });
 
+  group('json discover', () {
+    test(
+      'reads JSONPaths, renders cover templates and skips excluded items',
+      () async {
+        final engine = RuleEngine(
+          requestExecutor: _FakeExecutor([
+            '''{"results": [
+            {"id": "a", "title": "Alpha", "private": false,
+             "file": {"id": "f1"}, "thumbnail": 3},
+            {"id": "b", "title": "Private", "private": true,
+             "file": {"id": "f2"}, "thumbnail": 1},
+            {"id": "c", "title": "Embed", "private": false,
+             "file": null, "thumbnail": 0},
+            {"id": "d", "title": "Delta", "private": false,
+             "file": {"id": "f4"}, "thumbnail": 12}
+          ]}''',
+          ]),
+          logFailures: false,
+        );
+        final config = _config(
+          RuleDiscoverConfig.fromJson({
+            'format': 'json',
+            'url': 'https://api.example.com/videos',
+            'pageParam': 'page',
+            'pageStart': 0,
+            'layouts': [
+              {
+                'list': r'$.results[*]',
+                'name': r'$.title',
+                'link': r'$.id',
+                'cover':
+                    r'https://img.example.com/{$.file.id}/t-{$.thumbnail:02}.jpg',
+                'aspectRatio': 1.78,
+              },
+            ],
+            'exclude': [
+              {'path': r'$.private', 'value': true},
+              {'path': r'$.file', 'value': null},
+            ],
+          }),
+        );
+
+        final trace = await engine.discover(config, const RuleDiscoverQuery());
+
+        expect(trace.requestUrl, 'https://api.example.com/videos?page=0');
+        expect(trace.result.items.map((item) => item.src), ['a', 'd']);
+        expect(trace.result.items.map((item) => item.cover), [
+          'https://img.example.com/f1/t-03.jpg',
+          'https://img.example.com/f4/t-12.jpg',
+        ]);
+        expect(trace.result.aspectRatio, 1.78);
+      },
+    );
+
+    test('json layouts must use JSONPaths', () {
+      expect(
+        () => RuleDiscoverConfig.fromJson({
+          'format': 'json',
+          'url': 'https://api.example.com/videos',
+          'layouts': [
+            {'list': '//li', 'name': r'$.title', 'link': r'$.id'},
+          ],
+        }).validate(),
+        throwsFormatException,
+      );
+    });
+  });
+
   group('discover pager', () {
     test('de-duplicates across pages and stops on a repeated page', () {
       final pager = RuleDiscoverPager(baseUrl: 'https://example.com/');

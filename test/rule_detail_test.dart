@@ -56,6 +56,49 @@ void main() {
     expect(trace.detail.diagnostics, hasLength(1));
   });
 
+  test('reads details by JSONPath for API chapter rules', () async {
+    final engine = RuleEngine(
+      requestExecutor: _FakeExecutor([
+        '{"id": "v1", "title": "Video", "body": "  Line one\\nline two ",'
+            ' "tags": [{"id": "dance"}, {"id": "mmd"}]}',
+      ]),
+      logFailures: false,
+    );
+    final config = RuleExecutionConfig(
+      pluginName: 'json-detail',
+      baseUrl: 'https://example.com/',
+      usePost: false,
+      searchMode: RuleMode.api,
+      chapterMode: RuleMode.api,
+      searchUrl: '',
+      searchList: '',
+      searchName: '',
+      searchResult: '',
+      chapterRoads: '',
+      chapterResult: '',
+      searchApiConfig: ApiSearchConfig(),
+      chapterApiConfig: ApiChapterConfig.fromJson({
+        'request': {'url': 'https://api.example.com/video/@source'},
+        'roadsPath': '',
+        'episodesPath': r'$',
+        'episodeNamePath': r'$.title',
+        'episodeUrlPath': r'$.id',
+        'episodePage': {'url': 'https://example.com/video/@episodeUrl'},
+      }),
+      antiCrawlerConfig: AntiCrawlerConfig.empty(),
+      detailConfig: const RuleDetailConfig(
+        summary: r'$.body',
+        tags: r'$.tags[*].id',
+      ),
+    );
+
+    final trace = await engine.queryDetail(config, 'v1');
+
+    expect(trace.roads.single.data, ['https://example.com/video/v1']);
+    expect(trace.detail.summary, 'Line one line two');
+    expect(trace.detail.tags, ['dance', 'mmd']);
+  });
+
   test('config round-trips and the editor rejects relative XPaths', () {
     final plugin = Plugin.fromJson({
       ..._rule,
