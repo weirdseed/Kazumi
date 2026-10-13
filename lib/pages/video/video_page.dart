@@ -166,7 +166,23 @@ class _VideoPageState extends State<VideoPage>
     var progress = historyController.lastWatching(
         videoPageController.bangumiItem,
         videoPageController.currentPlugin.name);
-    if (progress != null) {
+    final requested = videoPageController.requestedStart;
+    if (requested != null &&
+        requested.road < videoPageController.roadList.length &&
+        requested.episode <=
+            videoPageController.roadList[requested.road].data.length) {
+      videoPageController.resetEpisodeState(
+        episode: requested.episode,
+        road: requested.road,
+      );
+      // Only continue mid-episode when the chosen one is the last watched.
+      if (playResume &&
+          progress != null &&
+          progress.road == requested.road &&
+          progress.episode == requested.episode) {
+        videoPageController.historyOffset = progress.progress.inSeconds;
+      }
+    } else if (progress != null) {
       if (videoPageController.roadList.length > progress.road) {
         if (videoPageController.roadList[progress.road].data.length >=
             progress.episode) {

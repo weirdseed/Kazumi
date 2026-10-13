@@ -377,7 +377,7 @@ class _InfoPageState extends State<InfoPage>
                           Positioned.fill(
                             bottom: kTextTabBarHeight,
                             child: IgnorePointer(
-                              child: _InfoHeaderBackground(
+                              child: InfoHeaderBackground(
                                 imageUrl: infoController
                                         .bangumiItem.images['large'] ??
                                     '',
@@ -463,8 +463,10 @@ class _InfoPageState extends State<InfoPage>
   }
 }
 
-class _InfoHeaderBackground extends StatelessWidget {
-  const _InfoHeaderBackground({
+/// Blurred cover behind a detail page header.
+class InfoHeaderBackground extends StatelessWidget {
+  const InfoHeaderBackground({
+    super.key,
     required this.imageUrl,
   });
 

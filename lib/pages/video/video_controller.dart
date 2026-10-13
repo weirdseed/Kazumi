@@ -134,6 +134,9 @@ abstract class _VideoPageController with Store implements Disposable {
 
   String src = '';
 
+  /// Episode the route asked to start with, overriding resume from history.
+  ({int road, int episode})? requestedStart;
+
   @observable
   var roadList = ObservableList<Road>();
 
@@ -165,6 +168,9 @@ abstract class _VideoPageController with Store implements Disposable {
         src = args.src;
         roadList.clear();
         roadList.addAll(args.roads);
+        requestedStart = args.startEpisode == null
+            ? null
+            : (road: args.startRoad ?? 0, episode: args.startEpisode!);
       case OfflineVideoPlaybackArgs():
         _initForOfflinePlayback(
           bangumiItem: args.bangumiItem,

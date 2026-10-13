@@ -11,7 +11,7 @@ import 'package:kazumi/bean/widget/kazumi_menu.dart';
 import 'package:kazumi/bean/widget/loading_indicator.dart';
 import 'package:kazumi/bean/widget/state_presentation.dart';
 import 'package:kazumi/modules/bangumi/bangumi_item.dart';
-import 'package:kazumi/pages/info/rule_source_playback.dart';
+import 'package:kazumi/pages/info/rule_info_page.dart';
 import 'package:kazumi/pages/popular/popular_controller.dart';
 import 'package:kazumi/pages/popular/rule_discover_controller.dart';
 import 'package:kazumi/pages/popular/rule_discover_filter_sheet.dart';
@@ -596,12 +596,14 @@ class _PopularPageState extends State<PopularPage> with KazumiDialogOwner {
               cover: item.cover,
               aspectRatio: aspectRatio,
               httpHeaders: headers,
-              onTap: () => openRuleSourceItem(
-                dialogs,
-                plugin: plugin,
-                src: item.src,
-                name: item.name,
-                cover: item.cover,
+              onTap: () => context.pushNamed(
+                '/info/rule',
+                arguments: RuleInfoArgs(
+                  plugin: plugin,
+                  src: item.src,
+                  name: item.name,
+                  cover: item.cover,
+                ),
               ),
             );
           },

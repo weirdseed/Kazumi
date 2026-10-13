@@ -19,6 +19,7 @@ import 'package:kazumi/modules/search/plugin_search_module.dart';
 import 'package:kazumi/pages/collect/collect_controller.dart';
 import 'package:kazumi/pages/info/info_controller.dart';
 import 'package:kazumi/pages/info/rule_source_playback.dart';
+import 'package:kazumi/pages/info/rule_info_page.dart';
 import 'package:kazumi/plugins/anti_crawler_config.dart';
 import 'package:kazumi/plugins/plugins.dart';
 import 'package:kazumi/plugins/plugins_controller.dart';
@@ -145,14 +146,28 @@ class _SourceSheetState extends State<SourceSheet> with KazumiDialogOwner {
     if (mounted) KazumiDialog.showToast(message: '无法打开浏览器，请稍后重试');
   }
 
-  Future<void> _openSearchItem(String name, SearchItem searchItem) =>
-      openRuleSourceItem(
-        dialogs,
-        plugin: _pluginFor(name),
-        src: searchItem.src,
-        name: searchItem.name,
-        bangumiItem: _bangumiItem,
+  Future<void> _openSearchItem(String name, SearchItem searchItem) async {
+    final bangumiItem = _bangumiItem;
+    if (bangumiItem == null) {
+      // Searching rules directly: show the rule's own detail page first.
+      await context.pushNamed(
+        '/info/rule',
+        arguments: RuleInfoArgs(
+          plugin: _pluginFor(name),
+          src: searchItem.src,
+          name: searchItem.name,
+        ),
       );
+      return;
+    }
+    await openRuleSourceItem(
+      dialogs,
+      plugin: _pluginFor(name),
+      src: searchItem.src,
+      name: searchItem.name,
+      bangumiItem: bangumiItem,
+    );
+  }
 
   void _showAliasPicker(String pluginName) {
     final item = _bangumiItem;
