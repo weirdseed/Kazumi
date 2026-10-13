@@ -3,6 +3,7 @@ import 'package:html/parser.dart';
 import 'package:kazumi/modules/roads/road_module.dart';
 import 'package:kazumi/modules/search/plugin_search_module.dart';
 import 'package:kazumi/plugins/anti_crawler_config.dart';
+import 'package:kazumi/plugins/comment_rule_config.dart';
 import 'package:kazumi/plugins/discover_rule_config.dart';
 import 'package:kazumi/services/plugin/rule_engine_models.dart';
 import 'package:kazumi/services/plugin/rule_template.dart';
@@ -30,6 +31,12 @@ enum XPathRuleField {
   discoverLink,
   discoverCover,
   discoverNextPage,
+  commentVariable,
+  commentList,
+  commentUser,
+  commentAvatar,
+  commentContent,
+  commentTime,
 }
 
 class XPathRuleFormatException implements Exception {
@@ -383,14 +390,28 @@ class XPathRuleStrategy {
     );
   }
 
-  /// Reads `/@attr` expressions as the attribute, other expressions as the
-  /// selected node's [attribute] or, without one, its text.
+  /// Reads `/@attr` expressions as the attribute and `/text()` as the
+  /// element's own text (not its children's, unlike xpath_selector's
+  /// `text()`); other expressions read the selected node's [attribute] or,
+  /// without one, its full text.
   String _selectString(
     XPathRuleField field,
     XPathNode<Node> node,
     String expression, {
     String? attribute,
   }) {
+    if (expression.endsWith(_ownText)) {
+      final element = _runSelector(
+        field,
+        expression,
+        () => node
+            .queryXPath(
+                expression.substring(0, expression.length - _ownText.length))
+            .node,
+      );
+      return element?.node.nodes.whereType<Text>().map((t) => t.text).join() ??
+          '';
+    }
     final result = _runSelector(
       field,
       expression,
@@ -428,6 +449,7 @@ class XPathRuleStrategy {
   }
 
   static final _attributeSuffix = RegExp(r'/@[\w:-]+$');
+  static const _ownText = '/text()';
   static final _styleUrl = RegExp(r'''url\(\s*['"]?([^'")]+)['"]?\s*\)''');
   static const _coverAttributes = [
     'data-original',
@@ -435,6 +457,76 @@ class XPathRuleStrategy {
     'data-lazy-src',
     'src',
   ];
+
+  /// Reads the [variables] a comment request needs from an episode page.
+  Map<String, String> extractVariables(
+    String raw,
+    List<RuleVariableSpec> variables,
+  ) {
+    final root = _documentElement(raw);
+    final rootNode = HtmlNodeTree(root);
+    final values = <String, String>{};
+    for (final spec in variables) {
+      var value = '';
+      if (spec.xpath.isNotEmpty) {
+        value = _selectString(
+          XPathRuleField.commentVariable,
+          rootNode,
+          spec.xpath,
+        );
+      }
+      if (value.isEmpty && spec.regex.isNotEmpty) {
+        final match = RegExp(spec.regex).firstMatch(raw);
+        if (match != null && spec.group <= match.groupCount) {
+          value = match.group(spec.group)?.trim() ?? '';
+        }
+      }
+      if (value.isEmpty) {
+        throw XPathRuleFormatException(
+          '评论变量 @${spec.name} 未在播放页中找到',
+          kind: XPathRuleFormatKind.invalidSelector,
+          field: XPathRuleField.commentVariable,
+          expression: spec.xpath.isNotEmpty ? spec.xpath : spec.regex,
+        );
+      }
+      values[spec.name] = value;
+    }
+    return values;
+  }
+
+  List<RuleComment> parseComments(
+    String html,
+    RuleExecutionConfig config,
+  ) {
+    final comment = config.commentConfig;
+    final root = _documentElement(html);
+    final nodes = _runSelector(
+      XPathRuleField.commentList,
+      comment.list,
+      () => root.queryXPath(comment.list).nodes,
+    );
+    final comments = <RuleComment>[];
+    for (final node in nodes) {
+      String read(XPathRuleField field, String expression) =>
+          expression.isEmpty
+              ? ''
+              : _selectString(field, node, expression)
+                  .replaceAll(RegExp(r'\s+'), ' ')
+                  .trim();
+      final content = read(XPathRuleField.commentContent, comment.content);
+      if (content.isEmpty) continue;
+      final avatar = read(XPathRuleField.commentAvatar, comment.avatar);
+      comments.add(RuleComment(
+        user: read(XPathRuleField.commentUser, comment.user),
+        avatar: avatar.isEmpty
+            ? ''
+            : normalizeEpisodeUrl(config.baseUrl, avatar),
+        content: content,
+        time: read(XPathRuleField.commentTime, comment.time),
+      ));
+    }
+    return comments;
+  }
 
   bool detectsCaptchaChallenge(
     String raw,
@@ -549,6 +641,12 @@ class XPathRuleStrategy {
       XPathRuleField.discoverLink => '推荐条目链接',
       XPathRuleField.discoverCover => '推荐条目封面',
       XPathRuleField.discoverNextPage => '推荐下一页',
+      XPathRuleField.commentVariable => '评论变量',
+      XPathRuleField.commentList => '评论列表',
+      XPathRuleField.commentUser => '评论用户',
+      XPathRuleField.commentAvatar => '评论头像',
+      XPathRuleField.commentContent => '评论内容',
+      XPathRuleField.commentTime => '评论时间',
     };
   }
 

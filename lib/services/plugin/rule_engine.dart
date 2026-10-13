@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:kazumi/modules/search/plugin_search_module.dart';
 import 'package:kazumi/plugins/api_rule_config.dart';
+import 'package:kazumi/plugins/comment_rule_config.dart';
 import 'package:kazumi/request/clients/plugin_site_client.dart';
 import 'package:kazumi/request/core/network_exception.dart';
 import 'package:kazumi/services/logging/logger.dart';
@@ -8,6 +9,7 @@ import 'package:kazumi/services/plugin/api_rule_strategy.dart';
 import 'package:kazumi/services/plugin/plugin_cookie_manager.dart';
 import 'package:kazumi/services/plugin/rule_engine_models.dart';
 import 'package:kazumi/services/plugin/xpath_rule_strategy.dart';
+import 'package:kazumi/utils/episode_url.dart';
 
 abstract interface class RuleRequestExecutor {
   Future<String> execute(
@@ -144,6 +146,67 @@ class RuleEngine {
       if (_isCancellation(error)) rethrow;
       _logFailure(config, 'discover response parsing', error, stackTrace);
       throw DiscoverErrorException(config.pluginName, cause: error);
+    }
+  }
+
+  /// Fetches the site's comments for one episode. The episode page is read
+  /// first only when the rule needs variables from it and the caller has none
+  /// cached from an earlier page.
+  Future<RuleCommentTrace> queryComments(
+    RuleExecutionConfig config,
+    RuleCommentQuery query, {
+    CancelToken? cancelToken,
+  }) async {
+    final comment = config.commentConfig;
+    final pageUrl = normalizeEpisodeUrl(config.baseUrl, query.pageUrl);
+    Object wrap(Object error) =>
+        CommentErrorException(config.pluginName, cause: error);
+    try {
+      var variables = query.variables;
+      if (variables == null) {
+        variables = const {};
+        if (comment.variables.isNotEmpty) {
+          final page = await _executeRequest(
+            PreparedRuleRequest(
+              method: 'GET',
+              url: pageUrl,
+              includeCookies: true,
+            ),
+            config,
+            phase: 'comment page request',
+            wrapError: wrap,
+            cancelToken: cancelToken,
+          );
+          variables = _xpathStrategy.extractVariables(page, comment.variables);
+        }
+      }
+      final request = _apiStrategy.prepareRequest(comment.request, {
+        ...variables,
+        'url': pageUrl,
+        'src': query.src,
+        'page': comment.pageStart + query.index,
+      });
+      final raw = await _executeRequest(
+        request,
+        config,
+        phase: 'comment request',
+        wrapError: wrap,
+        cancelToken: cancelToken,
+      );
+      final html = comment.format == RuleCommentFormat.jsonHtml
+          ? _apiStrategy.decodeHtmlField(raw, comment.htmlPath)
+          : raw;
+      return RuleCommentTrace(
+        comments: _xpathStrategy.parseComments(html, config),
+        variables: variables,
+        rawResponse: raw,
+      );
+    } on CommentErrorException {
+      rethrow;
+    } catch (error, stackTrace) {
+      if (_isCancellation(error)) rethrow;
+      _logFailure(config, 'comment parsing', error, stackTrace);
+      throw wrap(error);
     }
   }
 

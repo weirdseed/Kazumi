@@ -3,6 +3,7 @@ import 'package:kazumi/modules/roads/road_module.dart';
 import 'package:kazumi/modules/search/plugin_search_module.dart';
 import 'package:kazumi/plugins/anti_crawler_config.dart';
 import 'package:kazumi/plugins/api_rule_config.dart';
+import 'package:kazumi/plugins/comment_rule_config.dart';
 import 'package:kazumi/plugins/discover_rule_config.dart';
 
 typedef RuleCancelToken = CancelToken;
@@ -49,6 +50,17 @@ class ChapterErrorException implements Exception {
       '${cause != null ? ' ($cause)' : ''}';
 }
 
+class CommentErrorException implements Exception {
+  const CommentErrorException(this.pluginName, {this.cause});
+
+  final String pluginName;
+  final Object? cause;
+
+  @override
+  String toString() => 'CommentErrorException: $pluginName comments failed'
+      '${cause != null ? ' ($cause)' : ''}';
+}
+
 class DiscoverErrorException implements Exception {
   const DiscoverErrorException(this.pluginName, {this.cause});
 
@@ -65,7 +77,7 @@ class DiscoverErrorException implements Exception {
 /// Playback-only headers such as the rule's User-Agent and Referer are
 /// deliberately excluded. API requests can provide their own static headers.
 class RuleExecutionConfig {
-  const RuleExecutionConfig({
+  RuleExecutionConfig({
     required this.pluginName,
     required this.baseUrl,
     required this.usePost,
@@ -82,7 +94,8 @@ class RuleExecutionConfig {
     required this.antiCrawlerConfig,
     this.userAgent = '',
     this.discoverConfig = RuleDiscoverConfig.empty,
-  });
+    RuleCommentConfig? commentConfig,
+  }) : commentConfig = commentConfig ?? RuleCommentConfig.empty;
 
   final String pluginName;
   final String baseUrl;
@@ -102,6 +115,7 @@ class RuleExecutionConfig {
   /// User-Agent the rule asks for. Empty keeps the client's random UA.
   final String userAgent;
   final RuleDiscoverConfig discoverConfig;
+  final RuleCommentConfig commentConfig;
 }
 
 class PreparedRuleRequest {
@@ -226,4 +240,48 @@ class RuleDiscoverTrace {
   final String requestUrl;
   final String rawResponse;
   final RuleDiscoverParseResult result;
+}
+
+/// Comments of the episode at [pageUrl]. [variables] from an earlier call
+/// skip fetching the episode page again; [index] counts pages from 0.
+class RuleCommentQuery {
+  const RuleCommentQuery({
+    required this.pageUrl,
+    required this.src,
+    this.index = 0,
+    this.variables,
+  });
+
+  final String pageUrl;
+  final String src;
+  final int index;
+  final Map<String, String>? variables;
+}
+
+class RuleComment {
+  const RuleComment({
+    required this.content,
+    this.user = '',
+    this.avatar = '',
+    this.time = '',
+  });
+
+  final String content;
+  final String user;
+  final String avatar;
+
+  /// As shown by the site, e.g. "5個月前".
+  final String time;
+}
+
+class RuleCommentTrace {
+  const RuleCommentTrace({
+    required this.comments,
+    required this.variables,
+    required this.rawResponse,
+  });
+
+  final List<RuleComment> comments;
+  final Map<String, String> variables;
+  final String rawResponse;
 }

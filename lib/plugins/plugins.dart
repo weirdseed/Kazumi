@@ -2,6 +2,7 @@ import 'package:kazumi/modules/roads/road_module.dart';
 import 'package:kazumi/modules/search/plugin_search_module.dart';
 import 'package:kazumi/plugins/anti_crawler_config.dart';
 import 'package:kazumi/plugins/api_rule_config.dart';
+import 'package:kazumi/plugins/comment_rule_config.dart';
 import 'package:kazumi/plugins/discover_rule_config.dart';
 import 'package:kazumi/request/config/api_endpoints.dart';
 import 'package:kazumi/services/plugin/api_rule_engine.dart';
@@ -15,6 +16,10 @@ export 'package:kazumi/services/plugin/rule_engine_models.dart'
         SearchErrorException,
         ChapterErrorException,
         DiscoverErrorException,
+        CommentErrorException,
+        RuleComment,
+        RuleCommentQuery,
+        RuleCommentTrace,
         RuleDiscoverItem,
         RuleDiscoverParseResult,
         RuleDiscoverQuery;
@@ -53,6 +58,7 @@ class Plugin {
   ApiChapterConfig chapterApiConfig;
   AntiCrawlerConfig antiCrawlerConfig;
   RuleDiscoverConfig discoverConfig;
+  RuleCommentConfig commentConfig;
 
   Plugin({
     required this.api,
@@ -80,7 +86,9 @@ class Plugin {
     ApiChapterConfig? chapterApiConfig,
     AntiCrawlerConfig? antiCrawlerConfig,
     this.discoverConfig = RuleDiscoverConfig.empty,
-  })  : searchApiConfig = searchApiConfig ?? ApiSearchConfig(),
+    RuleCommentConfig? commentConfig,
+  })  : commentConfig = commentConfig ?? RuleCommentConfig.empty,
+        searchApiConfig = searchApiConfig ?? ApiSearchConfig(),
         chapterApiConfig = chapterApiConfig ?? ApiChapterConfig(),
         antiCrawlerConfig = antiCrawlerConfig ?? AntiCrawlerConfig.empty();
 
@@ -127,6 +135,11 @@ class Plugin {
               Map<String, dynamic>.from(json['discoverConfig']),
             )
           : RuleDiscoverConfig.empty,
+      commentConfig: json['commentConfig'] is Map
+          ? RuleCommentConfig.fromJson(
+              Map<String, dynamic>.from(json['commentConfig']),
+            )
+          : RuleCommentConfig.empty,
     );
   }
 
@@ -191,15 +204,19 @@ class Plugin {
         'chapterApiConfig': chapterApiConfig.toJson(),
       'antiCrawlerConfig': antiCrawlerConfig.toJson(),
       if (discoverConfig.hasContent) 'discoverConfig': discoverConfig.toJson(),
+      if (commentConfig.hasContent) 'commentConfig': commentConfig.toJson(),
     };
   }
 
   bool get supportsDiscover => discoverConfig.isConfigured;
 
+  bool get supportsSiteComments => commentConfig.isConfigured;
+
   /// Keeps sections added locally when an upstream update does not ship them,
   /// so updating an official rule does not drop the user's additions.
   void inheritLocalExtensions(Plugin local) {
     if (!discoverConfig.hasContent) discoverConfig = local.discoverConfig;
+    if (!commentConfig.hasContent) commentConfig = local.commentConfig;
   }
 
   bool get usesApiSearch => searchMode == RuleMode.api;
@@ -223,6 +240,7 @@ class Plugin {
         antiCrawlerConfig: antiCrawlerConfig,
         userAgent: userAgent,
         discoverConfig: discoverConfig,
+        commentConfig: commentConfig,
       );
 
   Future<RuleSearchTrace> traceSearch(
@@ -252,6 +270,18 @@ class Plugin {
     RuleCancelToken? cancelToken,
   }) {
     return _ruleEngine.discover(
+      _executionConfig,
+      query,
+      cancelToken: cancelToken,
+    );
+  }
+
+  /// The site's comments for one episode; see [RuleCommentConfig].
+  Future<RuleCommentTrace> queryComments(
+    RuleCommentQuery query, {
+    RuleCancelToken? cancelToken,
+  }) {
+    return _ruleEngine.queryComments(
       _executionConfig,
       query,
       cancelToken: cancelToken,

@@ -110,6 +110,15 @@ class ApiRuleStrategy {
     }
   }
 
+  /// Reads the HTML string a JSON response carries at [path].
+  String decodeHtmlField(String raw, String path) {
+    final value = RestrictedJsonPath.readFirst(decodeResponse(raw), path);
+    if (value is! String) {
+      throw ApiRuleFormatException('JSON 字段 $path 不是 HTML 字符串');
+    }
+    return value;
+  }
+
   PreparedRuleRequest prepareRequest(
     ApiRequestConfig config,
     Map<String, Object?> variables,
