@@ -98,8 +98,12 @@ class _RuleInfoPageState extends State<RuleInfoPage>
   Plugin get _plugin => widget.args.plugin;
   RuleDetail get _detail => _trace?.detail ?? RuleDetail.empty;
   bool get _loading => _trace == null && !_failed;
+
+  /// The listing card's cover, so the hero lands on the same picture; the
+  /// detail page's own cover (often a different crop or a player poster)
+  /// only fills in when opened without one, e.g. from search.
   String get _cover =>
-      _detail.cover.isNotEmpty ? _detail.cover : widget.args.cover;
+      widget.args.cover.isNotEmpty ? widget.args.cover : _detail.cover;
 
   /// The local-only item collected, played and shown in history.
   BangumiItem get _item => ruleSourceBangumiItem(
