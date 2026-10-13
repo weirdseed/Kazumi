@@ -189,7 +189,7 @@ void main() {
 const _detailPage = '''
 <html><body>
 <div class="poster"><img src="data:image/gif;base64,R0" data-src="/c/1.jpg"></div>
-<p class="views">播放 123456 次</p>
+<p class="views">番剧</p><p class="views">播放 123456 次</p>
 <p class="intro">  A story
    about cats. </p>
 <div class="tags"><a>日常 <span>(3)</span></a><a>治愈</a><a>日常</a></div>

@@ -588,8 +588,11 @@ class XPathRuleStrategy {
             ),
       tags: lines(XPathRuleField.detailTags, detail.tags),
       info: lines(XPathRuleField.detailInfo, detail.info),
+      // With a pattern, any matched node may hold the count.
       views: formatRuleViews(
-        lines(XPathRuleField.detailInfo, detail.views).firstOrNull ?? '',
+        detail.viewsPattern.isEmpty
+            ? lines(XPathRuleField.detailInfo, detail.views).firstOrNull ?? ''
+            : lines(XPathRuleField.detailInfo, detail.views).join(' '),
         detail.viewsPattern,
       ),
       diagnostics: diagnostics,
