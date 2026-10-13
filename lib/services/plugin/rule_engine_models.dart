@@ -295,6 +295,7 @@ class RuleDetail {
     this.summary = '',
     this.tags = const [],
     this.info = const [],
+    this.diagnostics = const [],
   });
 
   static const empty = RuleDetail();
@@ -303,6 +304,7 @@ class RuleDetail {
   final String summary;
   final List<String> tags;
   final List<String> info;
+  final List<String> diagnostics;
 }
 
 class RuleDetailTrace {

@@ -150,7 +150,7 @@ class RuleEngine {
   }
 
   /// Fetches the episode list and, from the same page, the rule's detail
-  /// fields. Details are best-effort: a broken selector leaves them empty
+  /// fields. Details are best-effort: a broken selector empties its field
   /// instead of blocking playback.
   Future<RuleDetailTrace> queryDetail(
     RuleExecutionConfig config,
@@ -166,6 +166,7 @@ class RuleEngine {
     if (config.detailConfig.hasContent && config.chapterMode == RuleMode.xpath) {
       try {
         detail = _xpathStrategy.parseDetail(chapters.rawResponse, config);
+        _logDiagnostics(config, 'detail', detail.diagnostics);
       } catch (error, stackTrace) {
         _logFailure(config, 'detail parsing', error, stackTrace);
       }

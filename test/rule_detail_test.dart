@@ -19,7 +19,7 @@ void main() {
         const RuleDetailConfig(
           cover: "//div[@class='poster']/img",
           summary: "//p[@class='intro']",
-          tags: "//div[@class='tags']/a",
+          tags: "//div[@class='tags']/a/text()",
           info: "//ul[@class='info']/li",
         ),
       ),
@@ -41,12 +41,19 @@ void main() {
     );
 
     final trace = await engine.queryDetail(
-      _config(const RuleDetailConfig(summary: 'p')),
+      _config(
+        const RuleDetailConfig(
+          summary: 'p',
+          tags: "//div[@class='tags']/a/text()",
+        ),
+      ),
       '/video/1',
     );
 
     expect(trace.roads, hasLength(1));
     expect(trace.detail.summary, isEmpty);
+    expect(trace.detail.tags, ['日常', '治愈']);
+    expect(trace.detail.diagnostics, hasLength(1));
   });
 
   test('config round-trips and the editor rejects relative XPaths', () {
@@ -76,7 +83,7 @@ const _detailPage = '''
 <div class="poster"><img src="data:image/gif;base64,R0" data-src="/c/1.jpg"></div>
 <p class="intro">  A story
    about cats. </p>
-<div class="tags"><a>日常</a><a>治愈</a><a>日常</a></div>
+<div class="tags"><a>日常 <span>(3)</span></a><a>治愈</a><a>日常</a></div>
 <ul class="info"><li>年份：2024</li><li> 地区：日本 </li><li> </li></ul>
 <div class="road"><a href="/play/1-1">第1集</a></div>
 </body></html>
