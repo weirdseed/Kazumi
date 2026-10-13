@@ -43,17 +43,14 @@ abstract class _CollectController with Store {
 
   @action
   Future<void> addCollect(BangumiItem bangumiItem, {type = 1}) async {
-    // Rule-source items are local-only and would break Bangumi sync.
-    if (bangumiItem.isRuleSource) return;
     if (type == 0) {
       await deleteCollect(bangumiItem);
       return;
     }
 
-    final bool syncSucceeded = await _syncBangumiCollectIfEnabled(
-      bangumiItem.id,
-      type,
-    );
+    // Rule-source items have no Bangumi subject; they are collected locally.
+    final bool syncSucceeded = bangumiItem.isRuleSource ||
+        await _syncBangumiCollectIfEnabled(bangumiItem.id, type);
     if (!syncSucceeded) {
       return;
     }
@@ -109,7 +106,7 @@ abstract class _CollectController with Store {
   Future<_BangumiDeleteSyncAction?> _resolveBangumiDeleteSyncAction(
       BangumiItem bangumiItem) async {
     final bool syncEnable = GStorage.getSetting(SettingsKeys.bangumiSyncEnable);
-    if (!syncEnable) {
+    if (!syncEnable || bangumiItem.isRuleSource) {
       return _BangumiDeleteSyncAction.deleteLocalOnly;
     }
 

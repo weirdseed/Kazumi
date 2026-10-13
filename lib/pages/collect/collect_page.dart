@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_mobx/flutter_mobx.dart';
 import 'package:flutter_modular/flutter_modular.dart';
+import 'package:kazumi/pages/info/rule_info_page.dart';
 
 import 'package:kazumi/bean/appbar/sys_app_bar.dart';
 import 'package:kazumi/bean/dialog/dialog_helper.dart';
@@ -144,7 +145,7 @@ class _CollectPageState extends State<CollectPage> with KazumiDialogOwner {
             onLayoutChanged: _changeLayout,
             canEdit: (item) =>
                 !_syncDialogOpen && !_pendingIds.contains(item.id),
-            onOpen: (item) => context.pushNamed('/info/', arguments: item),
+            onOpen: (item) => openItemDetail(context, item),
             onChangeType: (item, type) => unawaited(_changeType(item, type)),
           ),
         ),

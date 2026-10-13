@@ -5,7 +5,19 @@ import 'package:kazumi/modules/bangumi/bangumi_item.dart';
 /// subject ids are always positive.
 extension RuleSourceBangumiItem on BangumiItem {
   bool get isRuleSource => id < 0;
+
+  /// The rule and source this item came from, kept in [BangumiItem.info]
+  /// (unused by rule items) so collections and synced copies can reopen it.
+  ({String pluginName, String src})? get ruleOrigin {
+    if (!isRuleSource || !info.startsWith(_ruleOriginPrefix)) return null;
+    final body = info.substring(_ruleOriginPrefix.length);
+    final split = body.indexOf('\n');
+    if (split <= 0 || split == body.length - 1) return null;
+    return (pluginName: body.substring(0, split), src: body.substring(split + 1));
+  }
 }
+
+const _ruleOriginPrefix = 'kazumi-rule:';
 
 /// Builds the local-only item for a rule search result. The id is derived
 /// from [pluginName] and [src] so the same result keeps its watch history.
@@ -30,7 +42,7 @@ BangumiItem ruleSourceBangumiItem({
     ratingScore: 0.0,
     votes: 0,
     votesCount: [],
-    info: '',
+    info: '$_ruleOriginPrefix$pluginName\n$src',
   );
 }
 

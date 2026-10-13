@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_mobx/flutter_mobx.dart';
 import 'package:flutter_modular/flutter_modular.dart';
+import 'package:kazumi/pages/info/rule_info_page.dart';
 import 'package:kazumi/bean/appbar/sys_app_bar.dart';
 import 'package:kazumi/bean/dialog/dialog_helper.dart';
 import 'package:kazumi/modules/collect/collect_type.dart';
@@ -227,8 +228,12 @@ class _HistoryCardState extends State<_HistoryCard> with KazumiDialogOwner {
         busy: widget.busy,
         onPlay: _play,
         onDelete: widget.onDelete,
-        onDetails: () =>
-            context.pushNamed('/info/', arguments: widget.history.bangumiItem),
+        onDetails: () => openItemDetail(
+              context,
+              widget.history.bangumiItem,
+              pluginName: widget.history.adapterName,
+              src: widget.history.lastSrc,
+            ),
         collectType: CollectType.fromValue(
             _collectController.getCollectType(widget.history.bangumiItem)),
         onChangeCollect: _updatingCollect ? null : _changeCollect,

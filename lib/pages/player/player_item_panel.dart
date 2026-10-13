@@ -13,7 +13,6 @@ import 'package:kazumi/pages/player/controller/player_aspect_ratio.dart';
 import 'package:kazumi/pages/player/controller/player_super_resolution.dart';
 import 'package:kazumi/bean/widget/embedded_native_control_area.dart';
 import 'package:kazumi/pages/player/player_panel_hold.dart';
-import 'package:kazumi/modules/bangumi/rule_source_item.dart';
 import 'package:kazumi/services/player/pip_utils.dart';
 import 'package:kazumi/pages/video/video_controller.dart';
 import 'package:kazumi/bean/dialog/dialog_helper.dart';
@@ -828,11 +827,10 @@ class _PlayerItemPanelState extends State<PlayerItemPanel> {
                   ),
                 ),
               if (compact) _buildDanmakuToggleButton(context),
-              if (!videoPageController.bangumiItem.isRuleSource)
-                PlayerPanelHoldCollectButton(
-                  acquirePlayerPanelHold: widget.acquirePlayerPanelHold,
-                  bangumiItem: videoPageController.bangumiItem,
-                ),
+              PlayerPanelHoldCollectButton(
+                acquirePlayerPanelHold: widget.acquirePlayerPanelHold,
+                bangumiItem: videoPageController.bangumiItem,
+              ),
               PlayerPanelHoldMenuAnchor(
                 acquirePlayerPanelHold: widget.acquirePlayerPanelHold,
                 onVisibilityChanged: widget.onMenuVisibilityChanged,

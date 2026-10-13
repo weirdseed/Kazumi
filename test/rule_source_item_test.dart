@@ -42,6 +42,18 @@ void main() {
     );
   });
 
+  test('rule items remember where they came from', () {
+    final item = ruleSourceBangumiItem(
+      pluginName: 'hanime1',
+      src: 'https://hanime1.me/watch?v=1',
+      name: 'Example',
+    );
+
+    expect(item.ruleOrigin?.pluginName, 'hanime1');
+    expect(item.ruleOrigin?.src, 'https://hanime1.me/watch?v=1');
+    expect((item..info = '').ruleOrigin, isNull);
+  });
+
   test('empty input still yields a non-zero id', () {
     expect(ruleSourceBangumiId('', ''), isNegative);
   });
