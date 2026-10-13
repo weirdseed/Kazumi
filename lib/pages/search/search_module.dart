@@ -26,6 +26,14 @@ final searchModule = createModule(
         ),
       )
       ..route(
+        '/rule/:keyword',
+        provide: _provideSearchController,
+        child: (context, state) => SearchPage(
+          controller: context.read<SearchPageController>(),
+          ruleKeyword: state['keyword'] ?? '',
+        ),
+      )
+      ..route(
         '/:tag',
         provide: _provideSearchController,
         child: (context, state) => SearchPage(

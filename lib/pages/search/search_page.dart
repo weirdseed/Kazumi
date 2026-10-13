@@ -24,10 +24,18 @@ part 'search_filter_sheet.dart';
 part 'search_widgets.dart';
 
 class SearchPage extends StatefulWidget {
-  const SearchPage({super.key, required this.controller, this.inputTag = ''});
+  const SearchPage({
+    super.key,
+    required this.controller,
+    this.inputTag = '',
+    this.ruleKeyword = '',
+  });
 
   final SearchPageController controller;
   final String inputTag;
+
+  /// Opens in 规则源 mode searching this keyword, e.g. a rule detail tag.
+  final String ruleKeyword;
 
   @override
   State<SearchPage> createState() => _SearchPageState();
@@ -53,7 +61,13 @@ class _SearchPageState extends State<SearchPage> {
     super.initState();
     _scroll.addListener(_loadMoreOnScroll);
     _controller.loadSearchHistories();
-    if (widget.inputTag.isNotEmpty) {
+    if (widget.ruleKeyword.isNotEmpty) {
+      _ruleSearch = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _submit(Uri.decodeComponent(widget.ruleKeyword));
+      });
+    } else if (widget.inputTag.isNotEmpty) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
         _applyFilters(

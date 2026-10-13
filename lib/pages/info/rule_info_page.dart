@@ -10,7 +10,6 @@ import 'package:kazumi/modules/bangumi/bangumi_item.dart';
 import 'package:kazumi/modules/bangumi/rule_source_item.dart';
 import 'package:kazumi/pages/info/info_actions_menu.dart';
 import 'package:kazumi/pages/info/info_page.dart';
-import 'package:kazumi/pages/player/site_comments_view.dart';
 import 'package:kazumi/pages/video/video_playback_args.dart';
 import 'package:kazumi/plugins/plugins.dart';
 import 'package:kazumi/plugins/plugins_controller.dart';
@@ -74,8 +73,8 @@ void openItemDetail(
 
 /// Detail page of a rule result, laid out like the Bangumi info page: a
 /// blurred-cover header with the info card and collect button, then 概览
-/// (summary, tags and info from the rule's detailConfig), 吐槽 (the site's
-/// comments) and 选集, which rule items have instead of a source picker.
+/// with the summary and tags (which search the rules) from the rule's
+/// detailConfig.
 class RuleInfoPage extends StatefulWidget {
   const RuleInfoPage({super.key, required this.args});
 
@@ -87,7 +86,7 @@ class RuleInfoPage extends StatefulWidget {
 
 class _RuleInfoPageState extends State<RuleInfoPage>
     with SingleTickerProviderStateMixin {
-  static const List<String> _tabs = ['概览', '吐槽', '选集'];
+  static const List<String> _tabs = ['概览'];
   static const double _maxWidth = 950;
 
   late final TabController _tabController;
@@ -148,7 +147,7 @@ class _RuleInfoPageState extends State<RuleInfoPage>
     }
   }
 
-  void _play({int? road, int? episode}) {
+  void _play() {
     final roads = _trace?.roads;
     if (roads == null || roads.isEmpty) {
       KazumiDialog.showToast(message: _failed ? '未能获取播放列表，请重试' : '正在获取播放列表');
@@ -162,8 +161,6 @@ class _RuleInfoPageState extends State<RuleInfoPage>
         title: widget.args.name,
         src: widget.args.src,
         roads: roads,
-        startRoad: road,
-        startEpisode: episode,
       ),
     );
   }
@@ -248,11 +245,7 @@ class _RuleInfoPageState extends State<RuleInfoPage>
         ],
         body: TabBarView(
           controller: _tabController,
-          children: [
-            _wrapTab(_buildOverview(context)),
-            _wrapTab(_buildComments()),
-            _wrapTab(_buildEpisodes(context)),
-          ],
+          children: [_wrapTab(_buildOverview(context))],
         ),
       ),
       floatingActionButton: FloatingActionButton.extended(
@@ -294,7 +287,7 @@ class _RuleInfoPageState extends State<RuleInfoPage>
     final status = _buildStatus();
     if (status != null) return status;
     final detail = _detail;
-    if (detail.summary.isEmpty && detail.tags.isEmpty && detail.info.isEmpty) {
+    if (detail.summary.isEmpty && detail.tags.isEmpty) {
       return const GeneralEmptyState(
         compact: true,
         icon: Icons.notes_rounded,
@@ -325,23 +318,16 @@ class _RuleInfoPageState extends State<RuleInfoPage>
                     spacing: 8,
                     runSpacing: isDesktop() ? 8 : 0,
                     children: [
+                      // Like Bangumi tags, a tag searches; here in the rules.
                       for (final tag in detail.tags)
-                        Chip(
+                        ActionChip(
                           label: Text(tag),
-                          visualDensity: VisualDensity.compact,
+                          onPressed: () => context.pushNamed(
+                            '/search/rule/${Uri.encodeComponent(tag)}',
+                          ),
                         ),
                     ],
                   ),
-                  const SizedBox(height: 16),
-                ],
-                if (detail.info.isNotEmpty) ...[
-                  const Text('信息', style: TextStyle(fontSize: 18)),
-                  const SizedBox(height: 8),
-                  for (final line in detail.info)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 4),
-                      child: SelectableText(line),
-                    ),
                 ],
               ],
             ),
@@ -379,71 +365,6 @@ class _RuleInfoPageState extends State<RuleInfoPage>
           ],
         );
       },
-    );
-  }
-
-  Widget _buildComments() {
-    final status = _buildStatus();
-    if (status != null) return status;
-    if (!_plugin.supportsSiteComments) {
-      return const GeneralEmptyState(
-        compact: true,
-        icon: Icons.forum_outlined,
-        title: '该规则没有提供评论',
-      );
-    }
-    // Comments belong to an episode page; show the first one here, the
-    // player shows each episode's own.
-    final roads = _trace!.roads;
-    final pageUrl = roads.isNotEmpty && roads.first.data.isNotEmpty
-        ? roads.first.data.first
-        : widget.args.src;
-    return SiteCommentsView(
-      plugin: _plugin,
-      pageUrl: pageUrl,
-      src: widget.args.src,
-    );
-  }
-
-  Widget _buildEpisodes(BuildContext context) {
-    final status = _buildStatus();
-    if (status != null) return status;
-    final roads = _trace!.roads;
-    if (roads.isEmpty) {
-      return const GeneralEmptyState(
-        compact: true,
-        icon: Icons.playlist_remove_rounded,
-        title: '没有找到可播放的剧集',
-      );
-    }
-    final theme = Theme.of(context);
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
-      children: [
-        for (var road = 0; road < roads.length; road++) ...[
-          if (roads.length > 1)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Text(roads[road].name, style: theme.textTheme.titleSmall),
-            ),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              for (
-                var index = 0;
-                index < roads[road].identifier.length;
-                index++
-              )
-                ActionChip(
-                  label: Text(roads[road].identifier[index]),
-                  onPressed: () => _play(road: road, episode: index + 1),
-                ),
-            ],
-          ),
-          const SizedBox(height: 20),
-        ],
-      ],
     );
   }
 }
