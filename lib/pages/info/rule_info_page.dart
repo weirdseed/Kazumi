@@ -270,6 +270,7 @@ class _RuleInfoPageState extends State<RuleInfoPage>
                             item: item,
                             pluginName: _plugin.name,
                             info: _detail.info,
+                            views: _detail.views,
                             isLoading: _loading,
                           ),
                         ),
@@ -433,12 +434,14 @@ class _RuleInfoCard extends StatelessWidget {
     required this.pluginName,
     required this.info,
     required this.isLoading,
+    this.views = '',
   });
 
   final BangumiItem item;
   final String pluginName;
   final List<String> info;
   final bool isLoading;
+  final String views;
 
   @override
   Widget build(BuildContext context) {
@@ -448,7 +451,10 @@ class _RuleInfoCard extends StatelessWidget {
       color: Theme.of(context).colorScheme.primary,
     );
     // Show "label：value" lines the way the Bangumi card shows its facts.
-    final facts = <(String, String)>[('来源:', pluginName)];
+    final facts = <(String, String)>[
+      ('来源:', pluginName),
+      if (views.isNotEmpty) ('播放量:', views),
+    ];
     for (final line in info) {
       if (facts.length >= 3) break;
       final split = line.indexOf(RegExp('[：:]'));

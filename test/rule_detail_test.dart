@@ -21,6 +21,8 @@ void main() {
           summary: "//p[@class='intro']",
           tags: "//div[@class='tags']/a/text()",
           info: "//ul[@class='info']/li",
+          views: "//p[@class='views']",
+          viewsPattern: r'播放\s*(\d+)',
         ),
       ),
       '/video/1',
@@ -32,6 +34,18 @@ void main() {
     expect(trace.detail.summary, 'A story about cats.');
     expect(trace.detail.tags, ['日常', '治愈']);
     expect(trace.detail.info, ['年份：2024', '地区：日本']);
+    expect(trace.detail.views, '12.3万');
+  });
+
+  test('formats view counts', () {
+    expect(
+      formatRuleViews('觀看次數：708.5萬次  2026-04-30', r'：\s*([\d.,]+[萬万億亿]?)'),
+      '708.5萬',
+    );
+    expect(formatRuleViews('7085432', ''), '708.5万');
+    expect(formatRuleViews('123456789', ''), '1.2亿');
+    expect(formatRuleViews('1,530', ''), '1530');
+    expect(formatRuleViews('n/a', r'(\d+)'), '');
   });
 
   test('a broken detail selector still returns the episode list', () async {
@@ -175,6 +189,7 @@ void main() {
 const _detailPage = '''
 <html><body>
 <div class="poster"><img src="data:image/gif;base64,R0" data-src="/c/1.jpg"></div>
+<p class="views">播放 123456 次</p>
 <p class="intro">  A story
    about cats. </p>
 <div class="tags"><a>日常 <span>(3)</span></a><a>治愈</a><a>日常</a></div>

@@ -9,6 +9,8 @@ class RuleDetailConfig {
     this.tags = '',
     this.info = '',
     this.tagFilter = '',
+    this.views = '',
+    this.viewsPattern = '',
   });
 
   static const empty = RuleDetailConfig();
@@ -27,6 +29,13 @@ class RuleDetailConfig {
   /// the rule's discover listing filtered by it, like Bangumi tag search.
   final String tagFilter;
 
+  /// View count, by XPath or JSONPath like the other fields.
+  final String views;
+
+  /// Optional regex picking the count out of the [views] text (its first
+  /// group, or the whole match), e.g. from "觀看次數：708.5萬次".
+  final String viewsPattern;
+
   factory RuleDetailConfig.fromJson(Map<String, dynamic> json) {
     String read(String key) =>
         json[key] is String ? (json[key] as String).trim() : '';
@@ -36,6 +45,8 @@ class RuleDetailConfig {
       tags: read('tags'),
       info: read('info'),
       tagFilter: read('tagFilter'),
+      views: read('views'),
+      viewsPattern: read('viewsPattern'),
     );
   }
 
@@ -45,13 +56,16 @@ class RuleDetailConfig {
     if (tags.isNotEmpty) 'tags': tags,
     if (info.isNotEmpty) 'info': info,
     if (tagFilter.isNotEmpty) 'tagFilter': tagFilter,
+    if (views.isNotEmpty) 'views': views,
+    if (viewsPattern.isNotEmpty) 'viewsPattern': viewsPattern,
   };
 
   bool get hasContent =>
       cover.isNotEmpty ||
       summary.isNotEmpty ||
       tags.isNotEmpty ||
-      info.isNotEmpty;
+      info.isNotEmpty ||
+      views.isNotEmpty;
 
   /// Parses the rule editor's JSON text; empty text disables the section.
   static RuleDetailConfig parseEditorText(String text) {
@@ -66,6 +80,14 @@ class RuleDetailConfig {
     if (value is! Map) throw const FormatException('详情配置必须是 JSON 对象');
     for (final entry in value.entries) {
       final expression = entry.value;
+      if (entry.key == 'viewsPattern') {
+        try {
+          RegExp(expression.toString());
+        } catch (_) {
+          throw FormatException('详情配置 viewsPattern 不是有效的正则');
+        }
+        continue;
+      }
       if (entry.key == 'tagFilter' ||
           (entry.key == 'cover' &&
               expression is String &&

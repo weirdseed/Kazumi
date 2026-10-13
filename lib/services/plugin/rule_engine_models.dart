@@ -301,6 +301,7 @@ class RuleDetail {
     this.summary = '',
     this.tags = const [],
     this.info = const [],
+    this.views = '',
     this.diagnostics = const [],
   });
 
@@ -310,7 +311,31 @@ class RuleDetail {
   final String summary;
   final List<String> tags;
   final List<String> info;
+
+  /// View count as shown, e.g. "708.5萬" or "1.2万".
+  final String views;
   final List<String> diagnostics;
+}
+
+/// Picks the count out of a raw views value with the rule's pattern and
+/// shortens plain numbers like the Bangumi page does (万 / 亿).
+String formatRuleViews(String raw, String pattern) {
+  var text = raw.replaceAll(RegExp(r'\s+'), ' ').trim();
+  if (text.isEmpty) return '';
+  if (pattern.isNotEmpty) {
+    final match = RegExp(pattern).firstMatch(text);
+    if (match == null) return '';
+    text = (match.groupCount >= 1 ? match.group(1) : match.group(0))?.trim() ??
+        '';
+  }
+  final number = num.tryParse(text.replaceAll(',', ''));
+  if (number == null) return text;
+  String short(num value) => value
+      .toStringAsFixed(value >= 1000 ? 0 : 1)
+      .replaceFirst(RegExp(r'\.0$'), '');
+  if (number >= 100000000) return '${short(number / 100000000)}亿';
+  if (number >= 10000) return '${short(number / 10000)}万';
+  return number.toInt().toString();
 }
 
 class RuleDetailTrace {

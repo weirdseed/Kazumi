@@ -239,6 +239,10 @@ class ApiRuleStrategy {
       summary: values(detail.summary).join(' '),
       tags: values(detail.tags),
       info: values(detail.info),
+      views: formatRuleViews(
+        values(detail.views).firstOrNull ?? '',
+        detail.viewsPattern,
+      ),
       diagnostics: diagnostics,
     );
   }

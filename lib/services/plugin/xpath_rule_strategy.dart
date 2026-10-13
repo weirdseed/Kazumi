@@ -588,6 +588,10 @@ class XPathRuleStrategy {
             ),
       tags: lines(XPathRuleField.detailTags, detail.tags),
       info: lines(XPathRuleField.detailInfo, detail.info),
+      views: formatRuleViews(
+        lines(XPathRuleField.detailInfo, detail.views).firstOrNull ?? '',
+        detail.viewsPattern,
+      ),
       diagnostics: diagnostics,
     );
   }
