@@ -97,13 +97,18 @@ class ApiSearchConfig {
   String sourcePath;
   List<ApiItemFilter> exclude;
 
+  /// Detail page URL built by replacing `@source`; empty keeps the raw value.
+  final String sourceTemplate;
+
   ApiSearchConfig({
     ApiRequestConfig? request,
     this.listPath = r'$.data[*]',
     this.namePath = r'$.name',
     this.sourcePath = r'$.url',
     this.exclude = const [],
-  }) : request = request ?? ApiRequestConfig();
+    String sourceTemplate = '',
+  })  : request = request ?? ApiRequestConfig(),
+        sourceTemplate = sourceTemplate.trim();
 
   factory ApiSearchConfig.fromJson(Map<String, dynamic> json) {
     return ApiSearchConfig(
@@ -112,6 +117,7 @@ class ApiSearchConfig {
       namePath: json['namePath'] as String? ?? r'$.name',
       sourcePath: json['sourcePath'] as String? ?? r'$.url',
       exclude: ApiItemFilter.listFromJson(json['exclude']),
+      sourceTemplate: json['sourceTemplate'] as String? ?? '',
     );
   }
 
@@ -122,6 +128,7 @@ class ApiSearchConfig {
         'sourcePath': sourcePath,
         if (exclude.isNotEmpty)
           'exclude': exclude.map((filter) => filter.toJson()).toList(),
+        if (sourceTemplate.isNotEmpty) 'sourceTemplate': sourceTemplate,
       };
 }
 
